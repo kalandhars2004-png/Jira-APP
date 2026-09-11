@@ -342,19 +342,28 @@ const createCompactCard = (issue) => {
       icon.setAttribute('data-lucide', iconName);
     }
     clone.querySelector('.project-name').textContent = issue.projectName || '';
-    card.addEventListener('click', () => location.href = `/pages/issue.html?id=${issue.id}`);
-    card.style.cursor = 'pointer';
+    card.style.cursor = 'grab';
     card.draggable = true;
+    card.setAttribute('draggable', 'true');
     card.dataset.issueId = issue.id;
+    // Prevent click navigation when dragging
+    let wasDragged = false;
     card.addEventListener('dragstart', (e) => {
+      wasDragged = true;
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', String(issue.id));
       card.classList.add('dragging');
       card.style.opacity = '0.5';
+      console.log(`[MyTasks] dragstart ${issue.issueKey} -> ${issue.id}`);
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
       card.style.opacity = '';
+      setTimeout(() => { wasDragged = false; }, 100);
+    });
+    card.addEventListener('click', (e) => {
+      if (wasDragged) { e.preventDefault(); e.stopPropagation(); return; }
+      location.href = `/pages/issue.html?id=${issue.id}`;
     });
     const wrapper = document.createElement('div');
     wrapper.appendChild(clone);
@@ -372,17 +381,19 @@ const bindPersonalDrag = () => {
   document.querySelectorAll('.mytasks-col-body').forEach(col => {
     if (col.dataset.bound) return;
     col.dataset.bound = '1';
-    col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drag-over'); });
+    col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drag-over'); console.log('[MyTasks] dragover', col.closest('.mytasks-col')?.dataset.col); });
     col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
     col.addEventListener('drop', (e) => {
       e.preventDefault();
       col.classList.remove('drag-over');
       const issueId = e.dataTransfer.getData('text/plain');
       const targetCol = col.closest('.mytasks-col')?.dataset.col;
+      console.log(`[MyTasks] drop issue ${issueId} -> ${targetCol}`);
       if (!issueId || !targetCol) return;
       const map = getPersonalBoard();
       map[String(issueId)] = targetCol;
       setPersonalBoard(map);
+      console.log('[MyTasks] personalBoard updated', map);
       render();
       if (window.lucide) window.lucide.createIcons();
     });
