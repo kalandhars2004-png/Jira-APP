@@ -30,9 +30,8 @@ const refreshIcons = () => { if (window.lucide) window.lucide.createIcons(); };
 const checkCanEdit = (issue) => {
   if (!issue) return false;
   if (user.role === 'ADMIN') return true;
-  if (String(issue.assigneeId) === String(user.id)) return true;
-  // PROJECT_MANAGER can edit any in project (extensible)
-  if (user.role === 'PROJECT_MANAGER') return true;
+  // Spec: only creator (reporterId / createdById) can edit — DO NOT use assigneeId
+  if (String(issue.reporterId) === String(user.id)) return true;
   return false;
 };
 
@@ -47,7 +46,7 @@ const loadIssue = async () => {
         workflow = currentProject.workflow && Array.isArray(currentProject.workflow) ? currentProject.workflow : ['TODO','IN_PROGRESS','IN_REVIEW','DONE'];
       } catch { workflow = ['TODO','IN_PROGRESS','IN_REVIEW','DONE']; }
     }
-    // permission: only assignee or ADMIN can edit (others view-only)
+    // permission: only creator (reporterId) or ADMIN can edit — spec
     canEdit = checkCanEdit(data);
     renderIssue(data);
     await Promise.all([loadComments(), loadActivity(), loadSubtasks(), loadLinks(), loadWatchers(), loadAttachments()]);
@@ -72,7 +71,7 @@ const renderIssue = (issue) => {
       roBanner.style.display = 'flex';
       roBanner.style.alignItems = 'center';
       roBanner.style.gap = '8px';
-      roBanner.innerHTML = '<i data-lucide="eye" style="width:14px;height:14px"></i> View only — you are not the assignee. Only assignee or admin can edit.';
+      roBanner.innerHTML = '<i data-lucide="eye" style="width:14px;height:14px"></i> View only — you are not the creator. Only the creator can edit this issue.';
       const header = document.querySelector('.issue-header');
       header?.after(roBanner);
       if (window.lucide) window.lucide.createIcons();
@@ -97,7 +96,7 @@ const renderIssue = (issue) => {
   $('#titleSaveBtn').classList.add('hidden');
   $('#titleCancelBtn').classList.add('hidden');
 
-  // status dropdown
+  // status / priority — creator can edit via dropdowns, others see read-only text per spec
   const statusSel = $('#statusSelect');
   statusSel.textContent = '';
   workflow.forEach(s => {
@@ -114,10 +113,26 @@ const renderIssue = (issue) => {
     opt.selected = true;
     statusSel.appendChild(opt);
   }
-  statusSel.disabled = !canEdit;
-  statusSel.onchange = async () => {
-    try { await api.patch(`/api/issues/${issue.id}/status`, { status: statusSel.value, userId: user.id }); notify.success(`Status → ${statusSel.value}`); await loadIssue(); } catch (e) { notify.error(e.message); }
-  };
+  // read-only status span for non-creator
+  let statusRo = document.getElementById('statusReadOnly');
+  if (!statusRo) {
+    statusRo = document.createElement('span');
+    statusRo.id = 'statusReadOnly';
+    statusRo.style.fontWeight='600'; statusRo.style.fontSize='13px'; statusRo.style.padding='6px 10px'; statusRo.style.background='#f8fafc'; statusRo.style.border='1px solid #e2e8f0'; statusRo.style.borderRadius='8px';
+    statusSel.after(statusRo);
+  }
+  if (canEdit) {
+    statusSel.style.display = '';
+    statusRo.style.display = 'none';
+    statusSel.onchange = async () => {
+      try { await api.patch(`/api/issues/${issue.id}/status`, { status: statusSel.value, userId: user.id }); notify.success(`Status → ${statusSel.value}`); await loadIssue(); } catch (e) { notify.error(e.message); }
+    };
+  } else {
+    statusSel.style.display = 'none';
+    statusSel.onchange = null;
+    statusRo.textContent = issue.status || 'TODO';
+    statusRo.style.display = '';
+  }
 
   // priority
   const priSel = $('#prioritySelectDetail');
@@ -129,7 +144,6 @@ const renderIssue = (issue) => {
     if (p.toUpperCase() === issue.priority) opt.selected = true;
     priSel.appendChild(opt);
   });
-  // also support LOW etc.
   ['LOW','MEDIUM','HIGH','CRITICAL'].forEach(p => {
     if (!Array.from(priSel.options).some(o=>o.value===p)) {
       const opt = document.createElement('option');
@@ -139,10 +153,25 @@ const renderIssue = (issue) => {
       priSel.appendChild(opt);
     }
   });
-  priSel.disabled = !canEdit;
-  priSel.onchange = async () => {
-    try { await api.patch(`/api/issues/${issue.id}/priority`, { priority: priSel.value, userId: user.id }); notify.success('Priority updated'); await loadIssue(); } catch (e) { notify.error(e.message); }
-  };
+  let priRo = document.getElementById('priorityReadOnly');
+  if (!priRo) {
+    priRo = document.createElement('span');
+    priRo.id = 'priorityReadOnly';
+    priRo.style.fontWeight='600'; priRo.style.fontSize='13px'; priRo.style.padding='6px 10px'; priRo.style.background='#f8fafc'; priRo.style.border='1px solid #e2e8f0'; priRo.style.borderRadius='8px';
+    priSel.after(priRo);
+  }
+  if (canEdit) {
+    priSel.style.display = '';
+    priRo.style.display = 'none';
+    priSel.onchange = async () => {
+      try { await api.patch(`/api/issues/${issue.id}/priority`, { priority: priSel.value, userId: user.id }); notify.success('Priority updated'); await loadIssue(); } catch (e) { notify.error(e.message); }
+    };
+  } else {
+    priSel.style.display = 'none';
+    priSel.onchange = null;
+    priRo.textContent = issue.priority || 'MEDIUM';
+    priRo.style.display = '';
+  }
 
   // assignee pill
   const assigneePill = $('#assigneePill');

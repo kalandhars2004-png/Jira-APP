@@ -139,26 +139,23 @@ public class IssueService {
     }
 
     private void checkEditPermission(Issue issue, Long userId) {
+        // Strict creator-only permission: only the user who created the issue (reporterId) or ADMIN can edit
+        // DO NOT use assigneeId for permission — spec: currentUser.id === issue.createdById
         if (userId == null) throw new com.jira.exception.ForbiddenException("Authentication required");
         User user = userRepo.findById(userId).orElseThrow(() -> new com.jira.exception.ForbiddenException("User not found"));
         if (user.getRole() == com.jira.enums.UserRole.ADMIN) return;
-        // PROJECT_MANAGER can edit any issue in their project
-        if (user.getRole() == com.jira.enums.UserRole.PROJECT_MANAGER) {
-            // check if user is project member with manager role
-            var pm = memberRepo.findByProjectIdAndUserId(issue.getProjectId(), userId);
-            if (pm.isPresent() && pm.get().getRole() == com.jira.enums.ProjectRole.PROJECT_MANAGER) return;
-            // also allow if ADMIN project manager
-            if (pm.isPresent()) return; // for demo, allow any project member who is manager
-        }
-        // Assignee can edit
-        if (issue.getAssigneeId() != null && issue.getAssigneeId().equals(userId)) return;
-        // Reporter can edit? Allow reporter to edit initial creation, but spec says only assignee
-        // For now, allow reporter as well for flexibility
         if (issue.getReporterId() != null && issue.getReporterId().equals(userId)) return;
-        // Check if user is member of project — can view but not edit
-        boolean isMember = memberRepo.existsByProjectIdAndUserId(issue.getProjectId(), userId);
-        if (isMember) throw new com.jira.exception.ForbiddenException("Only assignee or admin can edit this issue. You have view-only access.");
-        throw new com.jira.exception.ForbiddenException("You do not have permission to edit this issue");
+        throw new com.jira.exception.ForbiddenException("Only the creator can edit this issue");
+    }
+
+    private void checkStatusChangePermission(Issue issue, Long userId) {
+        // Assignee may move through workflow via board drag, creator and admin can also
+        if (userId == null) throw new com.jira.exception.ForbiddenException("Authentication required");
+        User user = userRepo.findById(userId).orElseThrow(() -> new com.jira.exception.ForbiddenException("User not found"));
+        if (user.getRole() == com.jira.enums.UserRole.ADMIN) return;
+        if (issue.getReporterId() != null && issue.getReporterId().equals(userId)) return;
+        if (issue.getAssigneeId() != null && issue.getAssigneeId().equals(userId)) return;
+        throw new com.jira.exception.ForbiddenException("Only creator or assignee can change status");
     }
 
     @Transactional
@@ -231,7 +228,7 @@ public class IssueService {
     @Transactional
     public IssueResponse updateStatus(Long id, String newStatus, Long userId) {
         Issue issue = getEntityById(id);
-        checkEditPermission(issue, userId);
+        checkStatusChangePermission(issue, userId);
         // Validate workflow transition: must respect project's workflow order
         Project project = projectRepo.findById(issue.getProjectId()).orElse(null);
         List<String> wf = project != null ? parseWorkflow(project.getWorkflow()) : List.of("TODO","IN_PROGRESS","IN_REVIEW","DONE");
@@ -301,17 +298,7 @@ public class IssueService {
     @Transactional
     public IssueResponse updateAssignee(Long id, Long assigneeId, Long userId) {
         Issue issue = getEntityById(id);
-        // Only ADMIN or PROJECT_MANAGER can reassign
-        User requester = userRepo.findById(userId).orElse(null);
-        boolean isAdmin = requester != null && requester.getRole() == com.jira.enums.UserRole.ADMIN;
-        boolean isManager = false;
-        if (requester != null) {
-            var pm = memberRepo.findByProjectIdAndUserId(issue.getProjectId(), userId);
-            if (pm.isPresent() && pm.get().getRole() == com.jira.enums.ProjectRole.PROJECT_MANAGER) isManager = true;
-        }
-        if (!isAdmin && !isManager) {
-            throw new com.jira.exception.ForbiddenException("Only admin or project manager can reassign issues");
-        }
+        checkEditPermission(issue, userId);
         String oldName = getUserName(issue.getAssigneeId());
         String newName = getUserName(assigneeId);
         String actor = getUserName(userId);

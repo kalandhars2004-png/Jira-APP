@@ -399,7 +399,10 @@ const renderBoard = () => {
     } else {
       issues.forEach((issue) => {
         const card = createIssueCard(issue);
-        const isEditable = user.role === 'ADMIN' || String(issue.assigneeId) === String(user.id);
+        const isCreator = String(issue.reporterId) === String(user.id);
+        const isAssignee = String(issue.assigneeId) === String(user.id);
+        const isEditable = user.role === 'ADMIN' || isCreator || isAssignee;
+        const canDragStatus = user.role === 'ADMIN' || isCreator || isAssignee;
         const isViewOnly = activeBoardView === 'all' && !isEditable;
         if (isViewOnly) {
           card.style.opacity = '0.9';
@@ -577,23 +580,34 @@ const openDetail = async (issueId) => {
     const actions = $('#detailActions');
     actions.textContent = '';
     actions.style.display = 'flex';
-    actions.style.gap = '8px';
+    actions.style.gap = '12px';
     actions.style.flexWrap = 'wrap';
-    // status dropdown dynamic from project's workflow
     const wf = await getWorkflowForProject(issue.projectId);
-    const prioritySel = document.createElement('select'); prioritySel.id='detailPriority'; prioritySel.className='form-select'; prioritySel.style.maxWidth='140px';
-    ['LOW','MEDIUM','HIGH','CRITICAL'].forEach(v=> { const o=document.createElement('option'); o.textContent=v; o.value=v; if(v===issue.priority) o.selected=true; prioritySel.appendChild(o);});
-    const assigneeSel = document.createElement('select'); assigneeSel.id='detailAssignee'; assigneeSel.className='form-select'; assigneeSel.style.maxWidth='160px';
-    const defOpt = document.createElement('option'); defOpt.value=''; defOpt.textContent='Unassigned'; assigneeSel.appendChild(defOpt);
-    const statusSel = document.createElement('select'); statusSel.id='detailStatus'; statusSel.className='form-select'; statusSel.style.maxWidth='160px';
-    wf.forEach(v=> { const o=document.createElement('option'); o.textContent=v; o.value=v; if(v===issue.status) o.selected=true; statusSel.appendChild(o);});
-    // if current status not in workflow, add it
-    if (!wf.includes(issue.status)) {
-      const o=document.createElement('option'); o.textContent=issue.status; o.value=issue.status; o.selected=true; statusSel.appendChild(o);
+    const isCreator = String(issue.reporterId) === String(user.id) || user.role === 'ADMIN';
+    let prioritySel = null, assigneeSel = null, statusSel = null, saveBtn = null, delBtn = null;
+    if (isCreator) {
+      prioritySel = document.createElement('select'); prioritySel.id='detailPriority'; prioritySel.className='form-select'; prioritySel.style.maxWidth='140px';
+      ['LOW','MEDIUM','HIGH','CRITICAL'].forEach(v=> { const o=document.createElement('option'); o.textContent=v; o.value=v; if(v===issue.priority) o.selected=true; prioritySel.appendChild(o);});
+      assigneeSel = document.createElement('select'); assigneeSel.id='detailAssignee'; assigneeSel.className='form-select'; assigneeSel.style.maxWidth='160px';
+      const defOpt = document.createElement('option'); defOpt.value=''; defOpt.textContent='Unassigned'; assigneeSel.appendChild(defOpt);
+      statusSel = document.createElement('select'); statusSel.id='detailStatus'; statusSel.className='form-select'; statusSel.style.maxWidth='160px';
+      wf.forEach(v=> { const o=document.createElement('option'); o.textContent=v; o.value=v; if(v===issue.status) o.selected=true; statusSel.appendChild(o);});
+      if (!wf.includes(issue.status)) {
+        const o=document.createElement('option'); o.textContent=issue.status; o.value=issue.status; o.selected=true; statusSel.appendChild(o);
+      }
+      saveBtn = document.createElement('button'); saveBtn.id='detailSave'; saveBtn.className='btn btn-ghost btn-sm'; saveBtn.textContent='Update';
+      delBtn = document.createElement('button'); delBtn.id='detailDelete'; delBtn.className='btn btn-ghost btn-sm'; delBtn.textContent='Delete'; delBtn.style.color='#dc2626'; delBtn.style.borderColor='#fecaca';
+      actions.append(prioritySel, assigneeSel, statusSel, saveBtn, delBtn);
+    } else {
+      const ro = (label, value) => {
+        const wrap = document.createElement('div');
+        wrap.style.display='flex'; wrap.style.flexDirection='column'; wrap.style.gap='2px'; wrap.style.minWidth='110px';
+        const l = document.createElement('span'); l.textContent=label; l.style.fontSize='10px'; l.style.fontWeight='700'; l.style.letterSpacing='.06em'; l.style.textTransform='uppercase'; l.style.color='#94a3b8';
+        const v = document.createElement('span'); v.textContent=value; v.style.fontWeight='600'; v.style.fontSize='13px'; v.style.color='#0f172a';
+        wrap.append(l, v); return wrap;
+      };
+      actions.append(ro('Priority', issue.priority || 'MEDIUM'), ro('Assignee', issue.assigneeName || 'Unassigned'), ro('Status', issue.status || 'TODO'));
     }
-    const saveBtn = document.createElement('button'); saveBtn.id='detailSave'; saveBtn.className='btn btn-ghost btn-sm'; saveBtn.textContent='Update';
-    const delBtn = document.createElement('button'); delBtn.id='detailDelete'; delBtn.className='btn btn-ghost btn-sm'; delBtn.textContent='Delete'; delBtn.style.color='#dc2626'; delBtn.style.borderColor='#fecaca';
-    actions.append(prioritySel, assigneeSel, statusSel, saveBtn, delBtn);
 
     const sidebar = $('#detailSidebar');
     sidebar.textContent = '';
@@ -645,37 +659,39 @@ const openDetail = async (issueId) => {
     }
     refreshIcons();
 
-    try {
-      const users = await api.get(`/api/auth/users`);
-      users.forEach((u) => {
-        const o = document.createElement('option');
-        o.value = u.id;
-        o.textContent = `${u.name} • ${u.email}`;
-        if (String(u.id)===String(issue.assigneeId)) o.selected=true;
-        assigneeSel.appendChild(o);
-      });
-    } catch {}
-
-    saveBtn.addEventListener('click', async () => {
+    if (isCreator) {
       try {
-        await api.put(`/api/issues/${issue.id}`, {
-          priority: prioritySel.value,
-          assigneeId: assigneeSel.value ? Number(assigneeSel.value) : null,
-          status: statusSel.value,
-          title: issue.title,
-          description: issue.description,
-          issueType: issue.issueType,
-          dueDate: issue.dueDate
-        }, { params: { userId: user.id } });
-        notify.success('Issue updated');
-        closeModal('detailModal');
-        await loadIssues();
-      } catch (err) { notify.error(err.message); }
-    });
-    delBtn.addEventListener('click', async () => {
-      if (!confirm('Delete this issue?')) return;
-      try { await api.del(`/api/issues/${issue.id}`); notify.success('Issue deleted'); closeModal('detailModal'); await loadIssues(); } catch (err) { notify.error(err.message); }
-    });
+        const users = await api.get(`/api/auth/users`);
+        users.forEach((u) => {
+          const o = document.createElement('option');
+          o.value = u.id;
+          o.textContent = `${u.name} • ${u.email}`;
+          if (String(u.id)===String(issue.assigneeId)) o.selected=true;
+          assigneeSel.appendChild(o);
+        });
+      } catch {}
+
+      saveBtn.addEventListener('click', async () => {
+        try {
+          await api.put(`/api/issues/${issue.id}`, {
+            priority: prioritySel.value,
+            assigneeId: assigneeSel.value ? Number(assigneeSel.value) : null,
+            status: statusSel.value,
+            title: issue.title,
+            description: issue.description,
+            issueType: issue.issueType,
+            dueDate: issue.dueDate
+          }, { params: { userId: user.id } });
+          notify.success('Issue updated');
+          closeModal('detailModal');
+          await loadIssues();
+        } catch (err) { notify.error(err.message); }
+      });
+      delBtn.addEventListener('click', async () => {
+        if (!confirm('Delete this issue?')) return;
+        try { await api.del(`/api/issues/${issue.id}`, { params: { userId: user.id } }); notify.success('Issue deleted'); closeModal('detailModal'); await loadIssues(); } catch (err) { notify.error(err.message); }
+      });
+    }
 
     loadComments(issue.id);
     loadActivity(issue.id);
