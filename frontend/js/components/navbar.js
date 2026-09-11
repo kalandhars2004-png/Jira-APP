@@ -7,7 +7,6 @@ const getBreadcrumbs = () => {
   if (path.includes('board')) crumbs.push({ label: 'Board', href: '/pages/board.html' });
   else if (path.includes('mytasks')) crumbs.push({ label: 'My Tasks', href: '/pages/mytasks.html' });
   else if (path.includes('projects')) crumbs.push({ label: 'Projects', href: '/pages/projects.html' });
-  else if (path.includes('assign')) crumbs.push({ label: 'Assign', href: '/pages/assign.html' });
   else if (path.includes('review')) crumbs.push({ label: 'Review', href: '/pages/review.html' });
   else if (path.includes('dashboard')) crumbs.push({ label: 'Dashboard', href: '/pages/dashboard.html' });
   else if (path.includes('issue')) crumbs.push({ label: 'Issue', href: '#' });

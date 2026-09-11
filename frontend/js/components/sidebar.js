@@ -4,7 +4,6 @@ const getActiveId = () => {
   const { pathname } = location;
   if (pathname.includes('board')) return 'board';
   if (pathname.includes('mytasks') || pathname.includes('my-tasks') || pathname.includes('assigned')) return 'mytasks';
-  if (pathname.includes('assign')) return 'assign';
   if (pathname.includes('projects')) return 'projects';
   if (pathname.includes('members')) return 'members';
   if (pathname.includes('review')) return 'review';
@@ -80,7 +79,6 @@ export const initSidebar = (activeId) => {
     navContainer.appendChild(createLabel('WORKSPACE'));
     navContainer.appendChild(createItem('board', '/pages/board.html', 'layout-grid', 'Board'));
     navContainer.appendChild(createItem('mytasks', '/pages/mytasks.html', 'check-square', 'My Tasks'));
-    navContainer.appendChild(createItem('assign', '/pages/assign.html', 'user-check', 'Assigned'));
     navContainer.appendChild(createItem('projects', '/pages/projects.html', 'folder-kanban', 'Projects'));
     navContainer.appendChild(createItem('members', '/pages/members.html', 'users', 'Members'));
 
