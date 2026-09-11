@@ -12,7 +12,7 @@ import { createDateTimePicker } from '../components/dateTimePicker.js';
 
 const user = auth.requireAuth();
 initSidebar('board');
-initTopnav({ title: 'Board', subtitle: 'Manage issues, track progress, and move work through your project workflow.' });
+initTopnav({ title: 'Board', subtitle: '' });
 const topAvatar = document.getElementById('topnavAvatar');
 if (topAvatar) { topAvatar.textContent = initials(user.name); topAvatar.title = `${user.name} • ${user.email}`; }
 

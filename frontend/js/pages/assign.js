@@ -12,7 +12,7 @@ import { createDateTimePicker } from '../components/dateTimePicker.js';
 
 const user = auth.requireAuth();
 initSidebar('assign');
-initTopnav({ title: 'Assign', subtitle: 'Create unassigned work first, then drag to developers. See who has what.' });
+initTopnav({ title: 'Assign', subtitle: '' });
 
 const $ = (s) => document.querySelector(s);
 const projectSelect = $('#projectSelect');

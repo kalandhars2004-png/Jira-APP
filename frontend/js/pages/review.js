@@ -14,7 +14,7 @@ const isReviewStatus = (s) => {
 
 const user = auth.requireAuth();
 initSidebar('review');
-initTopnav({ title: 'Review', subtitle: 'Validate completed work before it ships.' });
+initTopnav({ title: 'Review', subtitle: '' });
 
 const $ = (s) => document.querySelector(s);
 const projectSelect = $('#projectSelect');

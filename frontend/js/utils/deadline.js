@@ -1,6 +1,6 @@
 // Deadline utils — ES6+ arrow functions, MINUTE-LEVEL precision, fully dynamic
 // Due value is one real datetime (e.g. "2026-09-11T14:31:00" local wall-clock).
-import { toDate, formatTime, formatDayName, formatDate, formatDateShort } from './formatters.js';
+import { toDate, formatTime, formatDayName, formatDate, formatDateShort, formatDateTime } from './formatters.js';
 
 const COMPLETED_STATUSES = new Set(['DONE', 'APPROVED', 'PUBLISHED', 'COMPLETED']);
 export const isCompletedStatus = (status) => COMPLETED_STATUSES.has((status || '').toUpperCase());
@@ -108,4 +108,4 @@ export const toLocalISO = (d) => {
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 };
 
-export { formatTime, formatDayName, formatDate, formatDateShort, toDate };
+export { formatTime, formatDayName, formatDate, formatDateShort, formatDateTime, toDate };

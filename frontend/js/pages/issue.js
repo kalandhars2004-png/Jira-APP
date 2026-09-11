@@ -10,7 +10,7 @@ import { onClockTick } from '../utils/clock.js';
 
 const user = auth.requireAuth();
 initSidebar('board');
-initTopnav({ title: 'Issue', subtitle: 'Issue details' });
+initTopnav({ title: 'Issue', subtitle: '' });
 const topAvatar = document.getElementById('topnavAvatar');
 if (topAvatar) { topAvatar.textContent = initials(user.name); }
 

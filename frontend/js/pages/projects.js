@@ -7,7 +7,7 @@ import { notify } from '../components/toast.js';
 
 const user = auth.requireAuth();
 initSidebar('projects');
-initTopnav({ title: 'Projects', subtitle: 'Create and manage projects — each gets its own workflow and board.' });
+initTopnav({ title: 'Projects', subtitle: '' });
 
 const $ = (s) => document.querySelector(s);
 const grid = $('#projectGrid');

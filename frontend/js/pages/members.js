@@ -7,7 +7,7 @@ import { initials } from '../utils/formatters.js';
 
 const user = auth.requireAuth();
 initSidebar('members');
-initTopnav({ title: 'Members', subtitle: 'Manage project members and roles. Members dynamically load for assignment.' });
+initTopnav({ title: 'Members', subtitle: '' });
 
 const $ = (s) => document.querySelector(s);
 let projects = [];

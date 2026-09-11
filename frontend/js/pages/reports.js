@@ -7,7 +7,7 @@ import { timeAgo } from '../utils/formatters.js';
 
 const user = auth.requireAuth();
 initSidebar('reports');
-initTopnav({ title: 'Reports', subtitle: 'Lightweight CSS-based analytics. No heavy chart libraries — just clean bars.' });
+initTopnav({ title: 'Reports', subtitle: '' });
 
 const $ = (s) => document.querySelector(s);
 

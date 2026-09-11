@@ -14,7 +14,7 @@ if (user.role !== 'ADMIN' && user.role !== 'PROJECT_MANAGER') {
   throw new Error('Redirecting MEMBER to My Tasks');
 }
 initSidebar('dashboard');
-initTopnav({ title: `Welcome back, ${user.name.split(' ')[0]} 👋`, subtitle: 'Here is your workspace overview. Deadlines update dynamically every load.' });
+initTopnav({ title: `Welcome back, ${user.name.split(' ')[0]} 👋`, subtitle: '' });
 
 const $ = (s) => document.querySelector(s);
 const topnavAction = $('#topnavAction');

@@ -139,7 +139,6 @@ export const createDateTimePicker = ({ container, value = null, onChange = null 
   const searchBox = el('input', 'dtp-time-input');
   searchBox.type = 'text';
   searchBox.placeholder = 'Search / type time (e.g. 2:31 PM)';
-  searchBox.addEventListener('keydown', onSearchKeydown);
   searchWrap.appendChild(searchBox);
   const listWrap = el('div', 'dtp-time-list');
   const footNote = el('div', 'dtp-time-note', '');
@@ -393,7 +392,7 @@ export const createDateTimePicker = ({ container, value = null, onChange = null 
     }
   });
 
-  // keyboard navigation (time)
+  // keyboard navigation (time) — define before wiring to avoid TDZ
   const onSearchKeydown = (e) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
@@ -418,6 +417,7 @@ export const createDateTimePicker = ({ container, value = null, onChange = null 
     }
   };
 
+  searchBox.addEventListener('keydown', onSearchKeydown);
   searchBox.addEventListener('input', () => {
     state.timeQuery = searchBox.value;
     state.timeCursor = -1;

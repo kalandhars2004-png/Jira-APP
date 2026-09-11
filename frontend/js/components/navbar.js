@@ -197,7 +197,8 @@ export const initTopnav = ({ title, subtitle } = {}) => {
   const titleEl = document.getElementById('topnavTitle');
   const subEl = document.getElementById('topnavSubtitle');
   if (titleEl && title) titleEl.textContent = title;
-  if (subEl && subtitle) subEl.textContent = subtitle;
+  if (subEl) subEl.textContent = subtitle || '';
+  if (subEl) subEl.style.display = subtitle ? '' : 'none';
 
   const user = storage.getUser();
   const avatarBtn = document.getElementById('topnavAvatar');
