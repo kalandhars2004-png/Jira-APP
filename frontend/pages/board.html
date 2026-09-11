@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Board — jiraLite</title>
+  <link rel="stylesheet" href="/css/global.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    /* Board polish — keep drag-drop untouched, only visual */
+    .board-page-header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
+    .board-title-block { display:flex; flex-direction:column; gap:4px; }
+    .board-title-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .board-title { font-size:28px; font-weight:700; letter-spacing:-.02em; color:#0F172A; line-height:1.1; }
+    .board-subtitle { font-size:13px; color:#64748B; line-height:1.4; }
+    .project-selector { display:flex; align-items:center; gap:8px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:7px 12px; min-width:220px; }
+    .project-selector:hover { border-color:#CBD5E1; background:#F8FAFC; }
+    .project-selector select { border:none; background:transparent; font-weight:600; font-size:13px; color:#0F172A; outline:none; flex:1; cursor:pointer; }
+    .board-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .board-actions .search-box { min-width:240px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:7px 12px; }
+    .board-actions .search-box:focus-within { border-color:#4F46E5; box-shadow:0 0 0 3px #EEF2FF; }
+    /* Segmented My/All */
+    .view-toggle { display:flex; background:#F1F5F9; border-radius:10px; padding:3px; gap:2px; border:1px solid #E2E8F0; }
+    .view-btn { display:flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; font-size:13px; font-weight:600; border:none; background:transparent; color:#64748B; cursor:pointer; transition: all .16s; }
+    .view-btn.active { background:#4F46E5; color:white; box-shadow:0 1px 4px rgba(79,70,229,.2); }
+    .view-btn:hover:not(.active) { background:white; color:#0F172A; }
+    /* Filter pills */
+    .filter-bar { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; overflow-x:auto; background:white; border:1px solid #E2E8F0; border-radius:10px; padding:8px; margin-bottom:12px; scrollbar-width:thin; }
+    .filter-bar::-webkit-scrollbar { height:4px; }
+    .filter-chip { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:99px; font-size:12px; font-weight:600; border:1px solid #E2E8F0; background:white; color:#64748B; cursor:pointer; white-space:nowrap; transition: all .14s; }
+    .filter-chip:hover { border-color:#CBD5E1; background:#F8FAFC; }
+    .filter-chip.active { background:#4F46E5; color:white; border-color:#4F46E5; }
+    .filter-chip .count { background:rgba(255,255,255,.18); padding:1px 6px; border-radius:99px; font-size:11px; }
+    .filter-chip.active .count { background:rgba(255,255,255,.22); }
+    /* Board columns polish — keep drag-drop */
+    .board-wrap { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; align-items:start; overflow-x:auto; padding-bottom:8px; }
+    @media (max-width: 1100px) { .board-wrap { grid-template-columns: repeat(4, 280px); } }
+    .board-column { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; min-height:420px; display:flex; flex-direction:column; }
+    .column-header { padding:12px 12px 10px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #E2E8F0; background:white; border-radius:12px 12px 0 0; position:sticky; top:0; z-index:2; }
+    .column-title { font-size:13px; font-weight:700; letter-spacing:-.01em; color:#0F172A; display:flex; align-items:center; gap:8px; }
+    .column-count { background:#F1F5F9; border:1px solid #E2E8F0; font-size:11px; font-weight:700; padding:2px 7px; border-radius:99px; color:#475569; }
+    .column-body { padding:8px; display:flex; flex-direction:column; gap:8px; min-height:300px; transition: background .15s; }
+    .column-body.drag-over { background:#EEF2FF; border:2px dashed #A5B4FC; border-radius:8px; }
+    /* Cards polish — keep drag */
+    .issue-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:12px; cursor:grab; transition: border-color .14s, box-shadow .14s, transform .14s; }
+    .issue-card:hover { border-color:#CBD5E1; box-shadow:0 2px 8px rgba(15,23,42,.06); transform: translateY(-1px); }
+    .issue-card:active { cursor:grabbing; }
+    .issue-card.dragging { opacity:.5; transform: rotate(1deg); }
+    .issue-key { font-size:11px; font-weight:700; color:#64748B; }
+    .issue-title { font-size:14px; font-weight:600; line-height:1.35; color:#0F172A; margin-top:4px; }
+    .issue-meta { display:flex; align-items:center; gap:6px; margin-top:8px; }
+    .priority-badge { font-size:11px; font-weight:700; padding:3px 8px; border-radius:99px; }
+    .issue-footer { display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:8px; border-top:1px solid #F1F5F9; }
+    .assignee { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:500; color:#475569; }
+    .avatar-sm { width:24px; height:24px; border-radius:50%; background:#F1F5F9; display:grid; place-items:center; font-size:11px; font-weight:700; color:#475569; border:1px solid #E2E8F0; }
+    .due-date { font-size:11px; font-weight:600; color:#64748B; }
+    .deadline-badge { font-size:11px; font-weight:700; padding:3px 7px; border-radius:6px; }
+    /* Empty states compact */
+    .empty-state { background:white; border:1px dashed #E2E8F0; border-radius:10px; padding:16px; text-align:center; }
+    .empty-icon { width:36px; height:36px; border-radius:8px; background:#F8FAFC; display:grid; place-items:center; margin:0 auto 8px; color:#94A3B8; }
+    .empty-title { font-size:13px; font-weight:600; color:#334155; }
+    .empty-desc { font-size:12px; color:#94A3B8; margin-top:2px; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">◆</div>
+        <div>
+          <div class="brand-text">jira<span>Lite</span></div>
+          <div class="brand-sub">Project Platform</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Workspace</div>
+        <a class="nav-item" data-nav="dashboard" href="/pages/dashboard.html"><i data-lucide="layout-dashboard" class="nav-icon"></i> Dashboard</a>
+        <a class="nav-item" data-nav="projects" href="/pages/projects.html"><i data-lucide="folder-kanban" class="nav-icon"></i> Projects</a>
+        <a class="nav-item" data-nav="board" href="/pages/board.html"><i data-lucide="kanban-square" class="nav-icon"></i> Board</a>
+        <a class="nav-item" data-nav="assign" href="/pages/assign.html"><i data-lucide="zap" class="nav-icon"></i> Assign</a>
+        <a class="nav-item" data-nav="review" href="/pages/review.html"><i data-lucide="clipboard-check" class="nav-icon"></i> Review</a>
+        <a class="nav-item" data-nav="mytasks" href="/pages/mytasks.html"><i data-lucide="check-square" class="nav-icon"></i> My Tasks</a>
+        <a class="nav-item" data-nav="members" href="/pages/members.html"><i data-lucide="users" class="nav-icon"></i> Members</a>
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" data-nav="reports" href="/pages/reports.html"><i data-lucide="bar-chart-3" class="nav-icon"></i> Reports</a>
+        <a class="nav-item" href="#" id="settingsLink"><i data-lucide="settings" class="nav-icon"></i> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-mini">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Loading...</div>
+            <div class="user-email" id="userEmail"></div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header id="topnav" class="topnav">
+        <div class="topnav-left">
+          <button id="mobileMenuBtn" class="btn btn-ghost btn-icon" aria-label="Toggle sidebar"><i data-lucide="menu" style="width:18px;height:18px"></i></button>
+          <div style="display:flex; align-items:center; gap:8px">
+            <a href="/pages/dashboard.html" style="font-weight:700; display:flex; align-items:center; gap:6px"><span style="width:28px;height:28px;background:#4F46E5;color:white;display:grid;place-items:center;border-radius:8px;font-weight:800">◆</span> jiraLite</a>
+            <span style="color:#CBD5E1">/</span>
+            <span style="font-weight:600; color:#0F172A">Board</span>
+          </div>
+        </div>
+        <div class="topnav-right">
+          <div class="search-box" style="max-width:320px"><i data-lucide="search" style="width:16px;height:16px;color:#94A3B8"></i><input id="globalSearchInput" placeholder="Search issues, projects..." /></div>
+          <button class="btn btn-ghost btn-icon" aria-label="Notifications"><i data-lucide="bell" style="width:18px;height:18px"></i></button>
+          <div class="user-avatar" id="topnavAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer" title="Profile"></div>
+        </div>
+      </header>
+
+      <main class="page-content" style="max-width:1400px">
+        <div class="board-page-header">
+          <div class="board-title-block">
+            <div class="board-title-row">
+              <div class="board-title">Board</div>
+              <div class="project-selector">
+                <i data-lucide="folder-kanban" class="icon" style="width:16px;height:16px"></i>
+                <select id="projectSelect" class="form-select" style="border:none;box-shadow:none;padding:0;background:none;min-width:180px"></select>
+                <i data-lucide="chevron-down" style="width:16px;height:16px;color:#64748B"></i>
+              </div>
+              <div class="view-toggle" id="boardViewToggle" style="margin-left:4px">
+                <button class="view-btn active" data-view="my"><i data-lucide="user" style="width:14px;height:14px"></i> My Issues</button>
+                <button class="view-btn" data-view="all"><i data-lucide="users" style="width:14px;height:14px"></i> All Issues</button>
+              </div>
+            </div>
+            <div class="board-subtitle">Manage issues, track progress, and move work through your project workflow.</div>
+          </div>
+          <div class="board-actions">
+            <div class="search-box" style="min-width:240px"><i data-lucide="search" style="width:16px;height:16px;color:#94A3B8"></i><input id="boardSearch" placeholder="Search by key, title, description..." /></div>
+            <button class="btn btn-primary" id="createIssueBtn" style="background:#4F46E5; border-color:#4F46E5"><i data-lucide="plus" style="width:16px;height:16px"></i> Create Issue</button>
+          </div>
+        </div>
+
+        <div class="filter-bar" id="filterBar">
+          <span class="filter-label" style="display:flex;align-items:center;gap:6px; font-size:12px; font-weight:600; color:#475569"><i data-lucide="sliders-horizontal" style="width:14px;height:14px"></i> Filters:</span>
+          <button class="filter-chip active" data-filter="all">All</button>
+          <button class="filter-chip" data-filter="my">My Issues</button>
+          <button class="filter-chip" data-filter="OVERDUE"><i data-lucide="alert-triangle" style="width:12px;height:12px"></i> Overdue</button>
+          <button class="filter-chip" data-filter="DUE_TODAY"><i data-lucide="clock" style="width:12px;height:12px"></i> Due Today</button>
+          <button class="filter-chip" data-filter="UPCOMING">Upcoming</button>
+          <button class="filter-chip" data-filter="COMPLETED">Completed</button>
+          <span class="filter-sep" style="width:1px; height:20px; background:#E2E8F0"></span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <select id="priorityFilter" class="form-select" style="min-width:130px; padding:6px 10px; font-size:12px"><option value="">All Priorities</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select>
+            <select id="typeFilter" class="form-select" style="min-width:130px; padding:6px 10px; font-size:12px"><option value="">All Types</option><option>TASK</option><option>BUG</option><option>STORY</option><option>IMPROVEMENT</option></select>
+            <button class="btn btn-ghost btn-sm" id="clearFiltersBtn" style="display:none; font-size:12px"><i data-lucide="x" style="width:12px;height:12px"></i> Clear</button>
+          </div>
+        </div>
+
+        <div id="myIssuesBanner" class="hidden" style="background:#FFFBEB; border:1px solid #FDE68A; color:#92400E; padding:10px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; font-size:13px">
+          <span style="display:flex; align-items:center; gap:8px"><i data-lucide="info" style="width:16px;height:16px"></i> No issues assigned to you in this project.</span>
+          <button class="btn btn-primary btn-sm" id="switchToAllBtn">Show All Issues</button>
+        </div>
+        <!-- Dynamic board — columns generated from project workflow -->
+        <div class="board-wrap" id="boardWrap"></div>
+        <div id="emptyBoard" class="empty-state hidden" style="margin-top:12px; padding:20px">
+          <div class="empty-icon" style="width:40px;height:40px"><i data-lucide="kanban-square" style="width:20px;height:20px"></i></div>
+          <div class="empty-title" style="font-size:14px">No issues in this project</div>
+          <div class="empty-desc" style="font-size:12px">Create an issue or switch to All Issues to see project issues.</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- CREATE ISSUE MODAL — polished generic -->
+  <div class="modal-overlay" id="issueModal">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header" style="flex-direction:column; align-items:flex-start; gap:2px">
+        <div style="display:flex; align-items:center; justify-content:space-between; width:100%">
+          <div class="modal-title">Create Issue</div><button class="modal-close" data-close aria-label="Close">×</button>
+        </div>
+        <div style="font-size:13px; color:#64748B; font-weight:400">Create and configure a new issue</div>
+      </div>
+      <form id="issueForm" class="modal-body" novalidate>
+        <div class="form-group">
+          <label class="form-label">Project <span class="required">*</span></label>
+          <div style="display:flex;align-items:center;gap:8px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:0 10px">
+            <i data-lucide="folder-kanban" style="width:16px;height:16px;color:#4F46E5"></i>
+            <select class="form-select" id="modalProjectSelect" style="border:none;box-shadow:none;background:transparent;flex:1" required></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Issue Type</label><select class="form-select" id="issueType"><option value="TASK">TASK</option><option value="BUG">BUG</option><option value="STORY">STORY</option><option value="IMPROVEMENT">IMPROVEMENT</option><option value="EPIC">EPIC</option></select></div>
+          <div class="form-group"><label class="form-label">Priority</label><select class="form-select" id="issuePriority"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Title <span class="required">*</span></label><input class="form-input" id="issueTitle" placeholder="Enter a clear issue title..." required style="font-size:15px; font-weight:500" />
+          <div id="titleError" style="display:none; color:#EF4444; font-size:12px; margin-top:4px; display:flex; align-items:center; gap:4px"><i data-lucide="alert-circle" style="width:12px;height:12px"></i> Issue title is required</div>
+        </div>
+        <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="issueDesc" placeholder="Describe the issue... (supports any content)"></textarea></div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Assignee</label><select class="form-select" id="issueAssignee"><option value="">Unassigned</option></select></div>
+          <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="issueStatus"></select></div>
+        </div>
+        <div class="form-group" style="max-width:50%"><label class="form-label">Due Date <span class="required">*</span></label>
+          <div style="position:relative">
+            <i data-lucide="calendar" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#94a3b8; pointer-events:none"></i>
+            <input class="form-input" id="issueDueDate" type="date" required style="padding-left:36px" />
+          </div>
+          <div id="dueDateError" style="display:none; color:#EF4444; font-size:12px; margin-top:4px; display:flex; align-items:center; gap:4px"><i data-lucide="alert-circle" style="width:12px;height:12px"></i> Please select a due date</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Labels <span style="font-weight:400;color:#64748B">(optional)</span></label>
+          <input class="form-input" id="issueLabels" placeholder="e.g. frontend, urgent" />
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Story Points</label><input class="form-input" id="issuePoints" type="number" min="0" placeholder="e.g. 3" /></div>
+          <div class="form-group"><label class="form-label">Sprint</label><input class="form-input" id="issueSprint" placeholder="e.g. Sprint 1" /></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-ghost" data-close>Cancel</button><button type="submit" class="btn btn-primary" id="issueSubmitBtn" style="background:#4F46E5"><i data-lucide="plus" style="width:16px;height:16px"></i> Create Issue</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ISSUE DETAIL MODAL -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal modal-wide">
+      <div class="modal-header"><div class="modal-title" id="detailTitle">Issue Details</div><button class="modal-close" data-close aria-label="Close">×</button></div>
+      <div class="modal-body">
+        <div class="detail-grid">
+          <div class="detail-main">
+            <div class="detail-badges" id="detailBadges"></div>
+            <h3 id="detailIssueTitle" class="detail-issue-title" style="font-size:16px; font-weight:700"></h3>
+            <div id="detailDesc" class="detail-desc" style="font-size:13px; color:#334155; background:#F8FAFC; border:1px solid #E2E8F0; padding:10px; border-radius:8px"></div>
+            <div class="detail-actions" id="detailActions"></div>
+            <div class="comments-section">
+              <div class="section-head"><span class="section-title" style="display:flex;align-items:center;gap:6px; font-size:13px; font-weight:700"><i data-lucide="message-circle" style="width:14px;height:14px"></i> Comments</span><span id="commentCount" class="section-count" style="font-size:12px; color:#64748B"></span></div>
+              <div id="commentList" class="comment-list"></div>
+              <form id="commentForm" class="comment-form" style="display:flex; gap:8px; margin-top:8px"><input class="form-input" id="commentInput" placeholder="Add a comment..." required style="flex:1"/><button class="btn btn-primary btn-sm" type="submit" style="background:#4F46E5"><i data-lucide="send" style="width:14px;height:14px"></i> Comment</button></form>
+            </div>
+          </div>
+          <div class="detail-sidebar" id="detailSidebar" style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px"></div>
+        </div>
+        <div class="activity-section" style="margin-top:12px">
+          <div class="section-title" style="display:flex;align-items:center;gap:6px; font-size:13px; font-weight:700"><i data-lucide="clock-3" style="width:14px;height:14px"></i> Activity</div>
+          <div id="activityList" class="activity-list" style="max-height:240px; overflow:auto"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEMPLATES — keep drag-drop untouched -->
+  <template id="issueCardTemplate">
+    <div class="issue-card">
+      <div class="issue-card-header">
+        <span class="issue-key"></span>
+        <span class="issue-type-badge"></span>
+      </div>
+      <div class="issue-title"></div>
+      <div class="issue-meta">
+        <span class="priority-badge"></span>
+        <span class="comment-count"></span>
+      </div>
+      <div class="issue-footer">
+        <div class="assignee">
+          <div class="avatar-sm"></div>
+          <span class="assignee-name"></span>
+        </div>
+        <div class="due-section">
+          <div class="due-label"></div>
+          <div class="due-date"></div>
+        </div>
+      </div>
+      <div class="deadline-badge"></div>
+      <div class="completed-box"><span class="completed-text"></span><span class="completed-meta"></span></div>
+    </div>
+  </template>
+
+  <template id="commentTemplate">
+    <div class="comment-item">
+      <div class="comment-head"><div class="avatar-sm"></div><span class="comment-author"></span><span class="comment-time"></span></div>
+      <div class="comment-body"></div>
+    </div>
+  </template>
+
+  <template id="activityTemplate">
+    <div class="activity-item"><div class="activity-dot">•</div><div class="activity-content"><div class="activity-details"></div><div class="activity-time"></div></div></div>
+  </template>
+
+  <template id="boardColumnTemplate">
+    <div class="board-column">
+      <div class="column-header"><span class="column-title"><i data-lucide="circle-dot" style="width:14px;height:14px"></i> <span class="column-name"></span> <span class="column-count">0</span></span></div>
+      <div class="column-body"></div>
+    </div>
+  </template>
+
+  <template id="columnEmptyTemplate">
+    <div class="empty-state" style="padding:12px; border:1px dashed #E2E8F0; background:white"><i data-lucide="inbox" style="width:18px;height:18px;color:#94A3B8;margin-bottom:4px"></i><div class="empty-title" style="font-size:12px">No issues</div><div class="empty-desc" style="font-size:11px">Drag here or create new</div></div>
+  </template>
+
+  <script type="module" src="/js/pages/board.js"></script>
+  <script>document.addEventListener('DOMContentLoaded',()=>{ if(window.lucide) lucide.createIcons(); });</script>
+</body>
+</html>

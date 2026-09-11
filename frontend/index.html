@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>jiraLite — Sign in</title>
+  <link rel="stylesheet" href="/css/global.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    body { background:#f8fafc; }
+    .auth-centered { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+    .auth-card-simple { width:100%; max-width:420px; background:white; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 30px rgba(15,23,42,.06); padding:28px; }
+    .auth-logo { display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:22px; text-align:center; }
+    .auth-logo-icon { width:44px; height:44px; background:#4f46e5; color:white; border-radius:12px; display:grid; place-items:center; font-weight:800; font-size:18px; }
+    .auth-brand { font-weight:800; font-size:16px; letter-spacing:-.02em; }
+    .auth-brand-sub { font-size:11px; color:#64748b; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
+    .auth-heading { font-size:20px; font-weight:800; letter-spacing:-.02em; text-align:center; }
+    .auth-subheading { font-size:13px; color:#64748b; text-align:center; margin-top:6px; line-height:1.4; }
+    .auth-tabs { display:flex; background:#f1f5f9; border-radius:10px; padding:3px; gap:3px; margin-top:18px; }
+    .auth-tabs .tab { flex:1; padding:8px; border-radius:8px; font-size:13px; font-weight:600; border:none; background:transparent; color:#64748b; cursor:pointer; }
+    .auth-tabs .tab.active { background:white; color:#0f172a; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+    .auth-form { display:flex; flex-direction:column; gap:14px; margin-top:18px; }
+    .auth-links { text-align:center; font-size:13px; margin-top:14px; }
+    .auth-links a { color:#4f46e5; font-weight:600; cursor:pointer; }
+    .auth-links a:hover { text-decoration:underline; }
+    .forgot-link { font-size:12px; color:#64748b; text-align:right; margin-top:-6px; }
+    .forgot-link a { color:#64748b; font-weight:500; }
+    .forgot-link a:hover { color:#4f46e5; }
+    /* wizard keep hidden until needed */
+    .wizard-overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; z-index:100; padding:20px; }
+    .wizard-overlay.open { display:flex; }
+    .wizard { background:white; border-radius:20px; width:100%; max-width:640px; max-height:90vh; overflow:hidden; box-shadow:0 24px 60px rgba(15,23,42,.18); display:flex; flex-direction:column; animation: wizardIn .28s cubic-bezier(.16,1,.3,1); }
+    @keyframes wizardIn { from { opacity:0; transform: translateY(12px) scale(.98); } to { opacity:1; transform: translateY(0) scale(1); } }
+    .wizard-head { padding:20px 24px 14px; border-bottom:1px solid #f1f5f9; }
+    .wizard-progress { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+    .wizard-step-dot { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:800; border:1.5px solid #e2e8f0; color:#94a3b8; background:white; }
+    .wizard-step-dot.active { background:#4f46e5; border-color:#4f46e5; color:white; }
+    .wizard-step-dot.done { background:#eef2ff; border-color:#4f46e5; color:#4f46e5; }
+    .wizard-step-line { flex:1; height:2px; background:#e2e8f0; border-radius:99px; overflow:hidden; }
+    .wizard-step-line.fill { background:#4f46e5; }
+    .wizard-step-labels { display:flex; justify-content:space-between; font-size:11px; font-weight:600; color:#94a3b8; margin-top:6px; }
+    .wizard-step-labels span.active { color:#4f46e5; }
+    .wizard-body { padding:22px 24px; overflow:auto; flex:1; }
+    .wizard-title { font-size:18px; font-weight:800; letter-spacing:-.02em; }
+    .wizard-sub { font-size:13px; color:#64748b; margin-top:4px; line-height:1.5; }
+    .wizard-cards { display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-top:16px; }
+    @media (max-width: 500px) { .wizard-cards { grid-template-columns: 1fr; } }
+    .wizard-card { border:1.5px solid #e2e8f0; border-radius:12px; padding:14px; cursor:pointer; transition: all .16s; background:white; text-align:left; }
+    .wizard-card:hover { border-color:#cbd5e1; background:#f8fafc; }
+    .wizard-card.selected { border-color:#4f46e5; background:#eef2ff; box-shadow:0 0 0 3px #eef2ff; }
+    .wizard-card-icon { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; background:#f1f5f9; color:#4f46e5; margin-bottom:8px; }
+    .wizard-card.selected .wizard-card-icon { background:#4f46e5; color:white; }
+    .wizard-card-title { font-size:13px; font-weight:700; }
+    .wizard-card-desc { font-size:11px; color:#64748b; margin-top:2px; line-height:1.4; }
+    .workflow-preview { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:8px; font-size:11px; }
+    .workflow-step { background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 8px; border-radius:99px; font-weight:600; }
+    .workflow-arrow { color:#94a3b8; }
+    .custom-workflow-editor { margin-top:14px; border:1px solid #e2e8f0; border-radius:12px; padding:12px; background:#f8fafc; }
+    .custom-status-list { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+    .custom-status-item { display:flex; align-items:center; gap:8px; background:white; border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; }
+    .custom-status-item input { flex:1; border:none; outline:none; font-weight:600; font-size:13px; background:transparent; }
+    .custom-status-item button { width:28px; height:28px; border-radius:6px; border:1px solid #e2e8f0; background:white; display:grid; place-items:center; cursor:pointer; }
+    .custom-status-item button:hover { background:#fef2f2; border-color:#fecaca; color:#dc2626; }
+    .wizard-actions { display:flex; justify-content:space-between; gap:10px; padding:14px 24px; border-top:1px solid #f1f5f9; background:#fcfcfd; }
+  </style>
+</head>
+<body>
+  <div class="auth-centered">
+    <div class="auth-card-simple">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">◆</div>
+        <div>
+          <div class="auth-brand">jiraLite</div>
+          <div class="auth-brand-sub">Project Platform</div>
+        </div>
+      </div>
+
+      <div id="loginHeader">
+        <div class="auth-heading">Welcome back</div>
+        <div class="auth-subheading">Sign in to your workspace</div>
+      </div>
+      <div id="registerHeader" style="display:none">
+        <div class="auth-heading">Create your account</div>
+        <div class="auth-subheading">Get started with jiraLite</div>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="tab active" id="tabLogin">Sign in</button>
+        <button class="tab" id="tabRegister">Create account</button>
+      </div>
+
+      <!-- LOGIN — ONLY Email + Password -->
+      <form id="loginForm" class="auth-form">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <div style="position:relative">
+            <i data-lucide="mail" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#94a3b8"></i>
+            <input class="form-input" id="loginEmail" type="email" placeholder="Enter your email" required autocomplete="email" style="padding-left:36px" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div style="position:relative">
+            <i data-lucide="lock" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#94a3b8"></i>
+            <input class="form-input" id="loginPassword" type="password" placeholder="Enter your password" required autocomplete="current-password" style="padding-left:36px" />
+          </div>
+        </div>
+        <div class="forgot-link"><a href="#" id="forgotLink">Forgot password?</a></div>
+        <button class="btn btn-primary" style="width:100%; padding:12px" type="submit" id="loginBtn">Sign in</button>
+        <div class="auth-links">Don't have an account? <a id="toRegister">Create account</a></div>
+      </form>
+
+      <!-- REGISTER — ONLY Name, Email, Password -->
+      <form id="registerForm" class="auth-form" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Full name</label>
+          <div style="position:relative">
+            <i data-lucide="user" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#94a3b8"></i>
+            <input class="form-input" id="regName" placeholder="Enter your name" required autocomplete="name" style="padding-left:36px" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <div style="position:relative">
+            <i data-lucide="mail" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#94a3b8"></i>
+            <input class="form-input" id="regEmail" type="email" placeholder="Enter your email" required autocomplete="email" style="padding-left:36px" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div style="position:relative">
+            <i data-lucide="lock" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#94a3b8"></i>
+            <input class="form-input" id="regPassword" type="password" placeholder="Enter your password" required autocomplete="new-password" style="padding-left:36px" />
+          </div>
+        </div>
+        <input type="hidden" id="regConfirmPassword" value="" />
+        <button class="btn btn-primary" style="width:100%; padding:12px" type="submit" id="registerBtn">Create account</button>
+        <div class="auth-links">Already have an account? <a id="toLogin">Sign in</a></div>
+      </form>
+
+      <div id="authError" style="display:none; background:#fef2f2; border:1px solid #fecaca; color:#dc2626; padding:10px 12px; border-radius:10px; font-size:13px; margin-top:14px"></div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING WIZARD — 3 steps (kept separate from auth) -->
+  <div class="wizard-overlay" id="onboardingWizard" role="dialog" aria-modal="true">
+    <div class="wizard">
+      <div class="wizard-head">
+        <div class="wizard-progress">
+          <div class="wizard-step-dot active" data-step="1">1</div>
+          <div class="wizard-step-line" id="line1"></div>
+          <div class="wizard-step-dot" data-step="2">2</div>
+          <div class="wizard-step-line" id="line2"></div>
+          <div class="wizard-step-dot" data-step="3">3</div>
+        </div>
+        <div class="wizard-step-labels">
+          <span class="active" data-label="1">Who you are</span>
+          <span data-label="2">Workflow</span>
+          <span data-label="3">Project</span>
+        </div>
+      </div>
+      <div class="wizard-body" id="wizardBody">
+        <div class="wizard-step" data-wizard-step="1">
+          <div class="wizard-title">Tell us what you're building</div>
+          <div class="wizard-sub">This helps us suggest a starting configuration. You can change everything later.</div>
+          <div class="wizard-cards" id="teamCards"></div>
+        </div>
+        <div class="wizard-step hidden" data-wizard-step="2">
+          <div class="wizard-title">What workflow do you want?</div>
+          <div class="wizard-sub">Choose a template or create a custom workflow. You can add, rename, delete and reorder statuses.</div>
+          <div class="wizard-cards" id="workflowCards" style="grid-template-columns:1fr 1fr"></div>
+          <div class="custom-workflow-editor hidden" id="customWorkflowEditor">
+            <div style="display:flex; align-items:center; justify-content:space-between">
+              <span style="font-size:13px; font-weight:700">Custom Workflow</span>
+              <button class="btn btn-ghost btn-sm" id="addStatusBtn" type="button"><i data-lucide="plus" style="width:14px;height:14px"></i> Add Status</button>
+            </div>
+            <div class="custom-status-list" id="customStatusList"></div>
+          </div>
+        </div>
+        <div class="wizard-step hidden" data-wizard-step="3">
+          <div class="wizard-title">Create your first project</div>
+          <div class="wizard-sub">This is optional — you can skip and create a project later from Projects page.</div>
+          <div style="display:flex; flex-direction:column; gap:12px; margin-top:16px">
+            <div class="form-group">
+              <label class="form-label">Project Name</label>
+              <input class="form-input" id="onboardProjectName" placeholder="Website Redesign" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Project Key</label>
+              <input class="form-input mono" id="onboardProjectKey" placeholder="WEB" maxlength="10" style="text-transform:uppercase" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea class="form-textarea" id="onboardProjectDesc" placeholder="Redesign the company website"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="wizard-actions">
+        <button class="btn btn-ghost" id="wizardBack" type="button" style="display:none">Back</button>
+        <div style="margin-left:auto; display:flex; gap:8px">
+          <button class="btn btn-ghost" id="wizardSkip" type="button">Skip for now</button>
+          <button class="btn btn-primary" id="wizardNext" type="button" disabled>Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD WORKFLOW STATUS MODAL — replaces window.prompt -->
+  <div class="modal-overlay" id="addStatusModal" role="dialog" aria-modal="true" aria-labelledby="addStatusTitle">
+    <div class="modal" style="max-width:440px; width:100%; border-radius:18px">
+      <div class="modal-header" style="border-bottom:none; padding-bottom:0">
+        <div>
+          <div class="modal-title" id="addStatusTitle" style="font-size:15px">Add workflow status</div>
+          <div style="font-size:13px; color:#64748b; margin-top:4px; line-height:1.4">Create a new status for this workflow.</div>
+        </div>
+        <button class="modal-close" data-close aria-label="Close">×</button>
+      </div>
+      <div class="modal-body" style="padding-top:16px">
+        <div class="form-group">
+          <label class="form-label" for="addStatusInput">Status name</label>
+          <input class="form-input" id="addStatusInput" placeholder="Enter status name..." autocomplete="off" />
+          <div id="addStatusError" style="display:none; color:#dc2626; font-size:12px; margin-top:6px">Status name is required.</div>
+        </div>
+      </div>
+      <div class="modal-footer" style="background:white; border-top:1px solid #f1f5f9">
+        <button type="button" class="btn btn-ghost" id="addStatusCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="addStatusConfirm" style="background:#4F46E5">Add Status</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/pages/login.js"></script>
+  <script>document.addEventListener('DOMContentLoaded',()=>{ if(window.lucide) lucide.createIcons(); });</script>
+</body>
+</html>

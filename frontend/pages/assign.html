@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assign — jiraLite</title>
+  <link rel="stylesheet" href="/css/global.css" />
+  <style>
+    .assign-header { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+    .assign-stats { display:flex; gap:8px; flex-wrap:wrap; font-size:12px; color:#64748b; }
+    .assign-stats span { background:white; border:1px solid #e2e8f0; padding:4px 8px; border-radius:99px; font-weight:600; }
+    .assign-board { display:grid; grid-template-columns: 300px repeat(auto-fit, minmax(280px, 1fr)); gap:16px; align-items:start; overflow-x:auto; padding-bottom:10px; }
+    @media (max-width: 1100px) { .assign-board { grid-template-columns: repeat(auto-fit, 300px); } }
+    .member-col { background: var(--surface-2); border:1px solid var(--border); border-radius:12px; display:flex; flex-direction:column; min-height:420px; }
+    .member-col-head { padding:12px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:10px; background:white; border-radius:12px 12px 0 0; position:sticky; top:0; z-index:2; }
+    .member-head-main { display:flex; align-items:center; gap:10px; }
+    .member-avatar-lg { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#4f46e5,#7c3aed); display:grid; place-items:center; color:white; font-weight:800; font-size:13px; flex-shrink:0; }
+    .member-name { font-weight:700; font-size:14px; line-height:1; }
+    .member-role { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; background:#eef2ff; color:#4f46e5; padding:3px 7px; border-radius:99px; }
+    .member-email { font-size:12px; color:#64748b; }
+    .member-stats { display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; }
+    .member-stat { text-align:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:6px 2px; }
+    .member-stat-val { font-weight:800; font-size:13px; line-height:1; }
+    .member-stat-label { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#64748b; margin-top:2px; }
+    .member-col-body { padding:10px; display:flex; flex-direction:column; gap:10px; min-height:300px; transition: background .15s; }
+    .member-col-body.drag-over { background:#eef2ff; border:2px dashed #a5b4fc; border-radius:8px; }
+    .unassigned-col { background:white; border:1.5px dashed #cbd5e1; }
+    .unassigned-col .member-col-head { background:#fffbeb; }
+    .user-detail-modal .modal { max-width:520px; }
+    .detail-grid-stats { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:12px; }
+    .detail-stat-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">◆</div>
+        <div>
+          <div class="brand-text">jira<span>Lite</span></div>
+          <div class="brand-sub">Project Platform</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Workspace</div>
+        <a class="nav-item" data-nav="dashboard" href="/pages/dashboard.html"><span class="nav-icon">◧</span> Dashboard</a>
+        <a class="nav-item" data-nav="projects" href="/pages/projects.html"><span class="nav-icon">▣</span> Projects</a>
+        <a class="nav-item" data-nav="board" href="/pages/board.html"><span class="nav-icon">☰</span> Board</a>
+        <a class="nav-item" data-nav="assign" href="/pages/assign.html"><span class="nav-icon">⚡</span> Assign</a>
+        <a class="nav-item" data-nav="mytasks" href="/pages/mytasks.html"><span class="nav-icon">✓</span> My Tasks</a>
+        <a class="nav-item" data-nav="members" href="/pages/members.html"><span class="nav-icon">◐</span> Members</a>
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" data-nav="reports" href="/pages/reports.html"><span class="nav-icon">▦</span> Reports</a>
+        <a class="nav-item" href="#" id="settingsLink"><span class="nav-icon">⚙</span> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-mini">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Loading...</div>
+            <div class="user-email" id="userEmail"></div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header id="topnav" class="topnav">
+        <div class="topnav-left">
+          <button id="mobileMenuBtn" class="btn btn-ghost btn-icon" aria-label="Toggle sidebar"><i data-lucide="menu" style="width:18px;height:18px"></i></button>
+          <div>
+            <h1 id="topnavTitle">Assign</h1>
+            <p id="topnavSubtitle">Assign work to developers and balance the team's workload.</p>
+          </div>
+        </div>
+        <div class="topnav-right">
+          <div class="search-box" style="max-width:280px"><i data-lucide="search" style="width:16px;height:16px;color:#94a3b8"></i><input id="globalSearchInput" placeholder="Search issues, projects..." /></div>
+          <div class="user-avatar" id="topnavAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer" title="Profile"></div>
+        </div>
+      </header>
+
+      <main class="page-content" style="max-width:1400px">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap:wrap">
+          <div>
+            <h2 style="font-size:18px; font-weight:800; letter-spacing:-.02em">Assign</h2>
+            <p style="font-size:13px; color:#64748b; margin-top:2px">Assign work to developers and balance the team's workload.</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px">
+            <div class="search-box" style="min-width:220px"><i data-lucide="search" style="width:16px;height:16px;color:#94a3b8"></i><input id="assignSearch" placeholder="Search issues..." /></div>
+            <button class="btn btn-primary" id="createUnassignedBtn"><i data-lucide="plus" style="width:16px;height:16px"></i> Create Issue</button>
+          </div>
+        </div>
+
+        <div class="filter-toolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:white; border:1px solid #E2E8F0; border-radius:10px; padding:8px; margin-bottom:12px">
+          <select id="projectSelect" class="form-select" style="min-width:160px"><option value="">All Projects</option></select>
+          <select id="priorityFilter" class="form-select" style="min-width:130px"><option value="">All Priorities</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select>
+          <select id="deadlineFilter" class="form-select" style="min-width:130px"><option value="">All Deadlines</option><option value="OVERDUE">Overdue</option><option value="DUE_TODAY">Due Today</option><option value="UPCOMING">Upcoming</option></select>
+        </div>
+        <div class="assign-stats" id="assignStats" style="margin-bottom:10px"></div>
+
+        <div class="assign-board" id="assignBoard"></div>
+        <div id="emptyAssign" class="empty-state hidden" style="margin-top:16px">
+          <div class="empty-icon">⚡</div>
+          <div class="empty-title">No issues</div>
+          <div class="empty-desc">Create an unassigned issue and drag it to a developer to assign.</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- CREATE UNASSIGNED MODAL -->
+  <div class="modal-overlay" id="unassignedModal">
+    <div class="modal">
+      <div class="modal-header"><div class="modal-title">New Unassigned Issue</div><button class="modal-close" data-close>×</button></div>
+      <form id="unassignedForm" class="modal-body">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="uaType"><option>TASK</option><option>BUG</option><option>STORY</option><option>IMPROVEMENT</option></select></div>
+          <div class="form-group"><label class="form-label">Priority</label><select class="form-select" id="uaPriority"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Title <span>*</span></label><input class="form-input" id="uaTitle" placeholder="e.g. Fix checkout validation" required /></div>
+        <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="uaDesc" placeholder="Describe the work..."></textarea></div>
+        <div class="form-group"><label class="form-label">Due Date <span>*</span></label><input class="form-input" id="uaDueDate" type="date" required /></div>
+        <div class="modal-footer"><button type="button" class="btn btn-ghost" data-close>Cancel</button><button type="submit" class="btn btn-primary" id="uaSubmitBtn">Create Unassigned</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- USER DETAIL MODAL -->
+  <div class="modal-overlay user-detail-modal" id="userDetailModal">
+    <div class="modal">
+      <div class="modal-header"><div class="modal-title" id="userDetailTitle">Member Details</div><button class="modal-close" data-close>×</button></div>
+      <div class="modal-body" id="userDetailBody"></div>
+    </div>
+  </div>
+
+  <!-- TEMPLATES -->
+  <template id="issueCardTemplate">
+    <div class="issue-card">
+      <div class="issue-card-header"><span class="issue-key"></span><span class="issue-type-badge"></span></div>
+      <div class="issue-title"></div>
+      <div class="issue-meta"><span class="priority-badge"></span><span class="comment-count"></span></div>
+      <div class="issue-footer"><div class="assignee"><div class="avatar-sm"></div><span class="assignee-name"></span></div><div class="due-section"><div class="due-label"></div><div class="due-date"></div></div></div>
+      <div class="deadline-badge"></div>
+      <div class="completed-box"><span class="completed-text"></span><span class="completed-meta"></span></div>
+    </div>
+  </template>
+
+  <template id="memberColTemplate">
+    <div class="member-col">
+      <div class="member-col-head">
+        <div class="member-head-main">
+          <div class="member-avatar-lg"></div>
+          <div style="flex:1; min-width:0">
+            <div style="display:flex; align-items:center; gap:6px"><span class="member-name"></span><span class="member-role"></span></div>
+            <div class="member-email"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm view-btn">View</button>
+        </div>
+        <div class="member-stats"></div>
+      </div>
+      <div class="member-col-body"></div>
+    </div>
+  </template>
+
+  <template id="memberStatTemplate">
+    <div class="member-stat">
+      <div class="member-stat-val"></div>
+      <div class="member-stat-label"></div>
+    </div>
+  </template>
+
+  <script type="module" src="/js/pages/assign.js"></script>
+</body>
+</html>

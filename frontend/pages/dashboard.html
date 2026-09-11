@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — jiraLite</title>
+  <link rel="stylesheet" href="/css/global.css" />
+  <style>
+    .hero { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 35%, #4f46e5 100%); color:white; border-radius:16px; padding:22px; display:grid; grid-template-columns: 1fr auto; gap:16px; align-items:center; position:relative; overflow:hidden; }
+    .hero::before { content:""; position:absolute; inset:0; background: radial-gradient(600px 300px at 20% 20%, rgba(255,255,255,.08), transparent); }
+    .hero > * { position:relative; z-index:1; }
+    .hero-avatar { width:52px; height:52px; border-radius:14px; background:white; color:#4f46e5; display:grid; place-items:center; font-weight:800; font-size:18px; }
+    .hero-stats { display:flex; gap:10px; flex-wrap:wrap; }
+    .hero-pill { background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); padding:7px 12px; border-radius:99px; font-size:12px; font-weight:700; backdrop-filter:blur(6px); }
+    .hero-pill.overdue { background:#fef2f2; color:#dc2626; border-color:#fecaca; }
+    .hero-pill.today { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+    @media (max-width: 860px) { .hero { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">◆</div>
+        <div>
+          <div class="brand-text">jira<span>Lite</span></div>
+          <div class="brand-sub">Project Platform</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Workspace</div>
+        <a class="nav-item" data-nav="dashboard" href="/pages/dashboard.html"><span class="nav-icon">◧</span> Dashboard</a>
+        <a class="nav-item" data-nav="projects" href="/pages/projects.html"><span class="nav-icon">▣</span> Projects</a>
+        <a class="nav-item" data-nav="board" href="/pages/board.html"><span class="nav-icon">☰</span> Board</a>
+        <a class="nav-item" data-nav="assign" href="/pages/assign.html"><span class="nav-icon">⚡</span> Assign</a>
+        <a class="nav-item" data-nav="mytasks" href="/pages/mytasks.html"><span class="nav-icon">✓</span> My Tasks</a>
+        <a class="nav-item" data-nav="members" href="/pages/members.html"><span class="nav-icon">◐</span> Members</a>
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" data-nav="reports" href="/pages/reports.html"><span class="nav-icon">▦</span> Reports</a>
+        <a class="nav-item" href="#" id="settingsLink"><span class="nav-icon">⚙</span> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-mini">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Loading...</div>
+            <div class="user-email" id="userEmail"></div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header id="topnav" class="topnav">
+        <div class="topnav-left">
+          <button id="mobileMenuBtn" class="btn btn-ghost btn-icon">☰</button>
+          <div>
+            <h1 id="topnavTitle">Dashboard</h1>
+            <p id="topnavSubtitle">Workspace overview. Deadlines update dynamically every load.</p>
+          </div>
+        </div>
+        <div class="topnav-right">
+          <div class="search-box"><span>⌕</span><input id="globalSearchInput" placeholder="Search issues, projects..." /></div>
+          <button class="btn btn-primary" id="topnavAction">Open Board →</button>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <!-- HERO — production -->
+        <div class="hero" id="hero">
+          <div>
+            <div style="display:flex; gap:14px; align-items:center">
+              <div class="hero-avatar" id="heroAvatar">K</div>
+              <div>
+                <div style="font-size:20px; font-weight:800; letter-spacing:-.02em" id="heroGreeting">Welcome back</div>
+                <div style="font-size:13px; opacity:.85" id="heroDate"></div>
+              </div>
+              <span style="margin-left:auto; background:white; color:#4f46e5; padding:6px 10px; border-radius:99px; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase" id="heroOverdueAlert">● All clear</span>
+            </div>
+            <div class="hero-stats" style="margin-top:14px">
+              <span class="hero-pill" id="heroStatProjects">0 Projects</span>
+              <span class="hero-pill" id="heroStatIssues">0 Issues</span>
+              <span class="hero-pill overdue" id="heroStatOverdue">0 Overdue</span>
+              <span class="hero-pill today" id="heroStatDueToday">0 Due Today</span>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px; min-width:220px">
+            <button class="btn btn-primary" style="background:white; color:#4f46e5; border:none; box-shadow:0 8px 20px rgba(0,0,0,.18)" onclick="location.href='/pages/board.html'">+ Create Issue</button>
+            <button class="btn btn-ghost" style="background:rgba(255,255,255,.12); color:white; border-color:rgba(255,255,255,.18); backdrop-filter:blur(6px)" onclick="location.href='/pages/projects.html'">+ New Project</button>
+            <div style="font-size:11px; opacity:.7; text-align:center">MySQL: jira • Deadline-aware</div>
+          </div>
+        </div>
+
+        <div id="statsGrid" class="stat-grid" style="margin-top:18px"></div>
+
+        <div class="grid-2" style="margin-top:18px">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Deadline Health</span><span class="card-sub">On Track • Due Today • Overdue • Completed</span></div>
+            <div class="card-pad" id="deadlineHealth" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Project Progress</span><a href="/pages/projects.html" class="view-link">View all →</a></div>
+            <div class="card-pad" id="projectProgress" style="display:flex;flex-direction:column;gap:12px"></div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:18px">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Status Distribution</span></div>
+            <div class="card-pad" id="statusDist" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Priority Breakdown</span></div>
+            <div class="card-pad" id="priorityDist" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:18px">
+          <div class="card">
+            <div class="card-header"><span class="card-title">My Assigned Issues</span><a href="/pages/mytasks.html" class="view-link">My Tasks →</a></div>
+            <div class="card-pad" id="myIssues"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Recent Activity</span><span class="card-sub">Deadline events & updates</span></div>
+            <div class="card-pad"><div id="activityFeed" class="activity-list"></div></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <template id="statCardTemplate">
+    <div class="stat-card">
+      <div class="stat-head">
+        <span class="stat-label"></span>
+        <span class="stat-icon"></span>
+      </div>
+      <div class="stat-value"></div>
+      <div class="stat-sub"></div>
+    </div>
+  </template>
+
+  <template id="deadlineHealthTemplate">
+    <div class="deadline-health-card">
+      <div class="deadline-health-label"></div>
+      <div class="deadline-health-value"></div>
+      <div class="chart-bar"><div class="chart-fill"></div></div>
+    </div>
+  </template>
+
+  <template id="projectProgressTemplate">
+    <div class="project-progress-item">
+      <div class="progress-head">
+        <span class="project-key mono"></span>
+        <span class="project-name"></span>
+        <span class="progress-pct"></span>
+      </div>
+      <div class="chart-bar"><div class="chart-fill"></div></div>
+      <div class="progress-foot"><span class="progress-count"></span><span class="progress-link">Open →</span></div>
+    </div>
+  </template>
+
+  <template id="statusDistTemplate">
+    <div class="status-dist-row">
+      <span class="status-name"></span>
+      <div class="chart-bar"><div class="chart-fill"></div></div>
+      <span class="status-count"></span>
+    </div>
+  </template>
+
+  <template id="priorityDistTemplate">
+    <div class="priority-dist-row">
+      <span class="priority-badge"></span>
+      <div class="chart-bar"><div class="chart-fill"></div></div>
+      <span class="priority-count"></span>
+    </div>
+  </template>
+
+  <template id="myIssueTemplate">
+    <div class="my-issue-row">
+      <span class="issue-key mono"></span>
+      <div class="my-issue-main">
+        <div class="my-issue-title"></div>
+        <div class="my-issue-sub"></div>
+      </div>
+      <span class="priority-badge"></span>
+    </div>
+  </template>
+
+  <template id="activityTemplate">
+    <div class="activity-item">
+      <div class="activity-dot">•</div>
+      <div class="activity-content">
+        <div class="activity-details"></div>
+        <div class="activity-time"></div>
+      </div>
+    </div>
+  </template>
+
+  <script type="module" src="/js/pages/dashboard.js"></script>
+</body>
+</html>

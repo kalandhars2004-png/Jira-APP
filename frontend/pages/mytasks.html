@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Tasks — jiraLite</title>
+  <link rel="stylesheet" href="/css/global.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .mytasks-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
+    .mytasks-title { font-size:20px; font-weight:800; letter-spacing:-.02em; }
+    .mytasks-sub { font-size:13px; color:#64748b; margin-top:2px; }
+    .summary-row { display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; margin-bottom:14px; }
+    @media (max-width: 860px) { .summary-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .summary-row { grid-template-columns: 1fr; } }
+    .summary-card { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px; display:flex; align-items:center; gap:10px; }
+    .summary-icon { width:36px; height:36px; border-radius:8px; display:grid; place-items:center; flex-shrink:0; }
+    .summary-icon.overdue { background:#fef2f2; color:#dc2626; }
+    .summary-icon.today { background:#fffbeb; color:#b45309; }
+    .summary-icon.upcoming { background:#eff6ff; color:#2563eb; }
+    .summary-icon.completed { background:#f0fdf4; color:#059669; }
+    .summary-icon.progress { background:#eef2ff; color:#4f46e5; }
+    .summary-val { font-size:18px; font-weight:800; line-height:1; }
+    .summary-label { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#64748b; }
+    .filter-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:white; border:1px solid #e2e8f0; border-radius:10px; padding:8px; margin-bottom:14px; }
+    .filter-toolbar .search-box { flex:1; min-width:180px; max-width:320px; background:#f8fafc; }
+    .view-toggle { display:flex; background:#f1f5f9; border-radius:8px; padding:2px; gap:2px; }
+    .view-btn { display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:6px; font-size:13px; font-weight:600; border:none; background:transparent; color:#64748b; cursor:pointer; }
+    .view-btn.active { background:white; color:#0f172a; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+    .task-section { margin-bottom:14px; }
+    .task-section-head { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #e2e8f0; margin-bottom:8px; cursor:pointer; user-select:none; }
+    .task-section-title { font-size:12px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; display:flex; align-items:center; gap:6px; }
+    .task-section-title.overdue { color:#dc2626; }
+    .task-section-title.today { color:#b45309; }
+    .task-section-title.upcoming { color:#334155; }
+    .task-section-title.completed { color:#059669; }
+    .task-section-count { background:#f1f5f9; border:1px solid #e2e8f0; padding:2px 7px; border-radius:99px; font-size:11px; font-weight:700; color:#475569; }
+    .task-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap:10px; }
+    @media (max-width: 640px) { .task-grid { grid-template-columns: 1fr; } }
+    .task-card-compact { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px; cursor:pointer; transition: border-color .15s, box-shadow .15s; }
+    .task-card-compact:hover { border-color:#cbd5e1; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+    .task-card-key { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#64748b; }
+    .task-card-title { font-size:13px; font-weight:600; line-height:1.4; margin-top:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .task-card-meta { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:11px; }
+    .task-card-foot { display:flex; align-items:center; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9; font-size:11px; color:#64748b; }
+    .deadline { display:flex; align-items:center; gap:4px; font-weight:600; font-size:11px; }
+    .deadline.overdue { color:#dc2626; }
+    .deadline.today { color:#b45309; }
+    .deadline.upcoming { color:#64748b; }
+    .deadline.completed { color:#059669; }
+    .empty-compact { text-align:center; padding:14px; color:#94a3b8; font-size:13px; background:#f8fafc; border:1px dashed #e2e8f0; border-radius:10px; }
+    .empty-centered { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; background:white; border:1px solid #e2e8f0; border-radius:12px; text-align:center; max-width:420px; margin:40px auto; }
+    .empty-centered-icon { width:48px; height:48px; border-radius:12px; background:#f1f5f9; display:grid; place-items:center; color:#64748b; }
+    .list-view { display:flex; flex-direction:column; gap:8px; }
+    .list-row { display:grid; grid-template-columns: 100px 1fr 90px 100px 90px; gap:12px; align-items:center; background:white; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; }
+    @media (max-width: 860px) { .list-row { grid-template-columns: 1fr auto; } .list-row .hide-m { display:none; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">◆</div>
+        <div>
+          <div class="brand-text">jira<span>Lite</span></div>
+          <div class="brand-sub">Project Platform</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Workspace</div>
+        <a class="nav-item" data-nav="dashboard" href="/pages/dashboard.html" data-role="admin"><i data-lucide="layout-dashboard" class="nav-icon"></i> Dashboard</a>
+        <a class="nav-item" data-nav="projects" href="/pages/projects.html"><i data-lucide="folder-kanban" class="nav-icon"></i> Projects</a>
+        <a class="nav-item" data-nav="board" href="/pages/board.html"><i data-lucide="kanban-square" class="nav-icon"></i> Board</a>
+        <a class="nav-item" data-nav="assign" href="/pages/assign.html"><i data-lucide="zap" class="nav-icon"></i> Assign</a>
+        <a class="nav-item" data-nav="review" href="/pages/review.html"><i data-lucide="clipboard-check" class="nav-icon"></i> Review</a>
+        <a class="nav-item" data-nav="mytasks" href="/pages/mytasks.html"><i data-lucide="check-square" class="nav-icon"></i> My Tasks</a>
+        <a class="nav-item" data-nav="members" href="/pages/members.html"><i data-lucide="users" class="nav-icon"></i> Members</a>
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" data-nav="reports" href="/pages/reports.html" data-role="admin"><i data-lucide="bar-chart-3" class="nav-icon"></i> Reports</a>
+        <a class="nav-item" href="#" id="settingsLink"><i data-lucide="settings" class="nav-icon"></i> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-mini">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Loading...</div>
+            <div class="user-email" id="userEmail"></div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header id="topnav" class="topnav">
+        <div class="topnav-left">
+          <button id="mobileMenuBtn" class="btn btn-ghost btn-icon" aria-label="Toggle sidebar"><i data-lucide="menu" style="width:18px;height:18px"></i></button>
+          <div>
+            <h1 id="topnavTitle" style="display:none">My Tasks</h1>
+            <p id="topnavSubtitle" style="display:none">My Tasks</p>
+          </div>
+        </div>
+        <div class="topnav-right">
+          <div class="search-box" style="display:none"><i data-lucide="search" style="width:16px;height:16px;color:#94a3b8"></i><input id="globalSearchInput" placeholder="Search issues, projects..." /></div>
+          <button class="btn btn-ghost btn-icon" aria-label="Notifications" style="display:none"><i data-lucide="bell" style="width:18px;height:18px"></i></button>
+          <div class="user-avatar" id="topnavAvatar" style="width:32px;height:32px;font-size:12px;display:none" title="Profile"></div>
+        </div>
+      </header>
+
+      <main class="page-content" style="max-width:1100px">
+        <div class="mytasks-header">
+          <div>
+            <div class="mytasks-title">My Tasks</div>
+            <div class="mytasks-sub">Your assigned work, deadlines, and progress.</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-left:auto">
+            <div class="search-box" style="min-width:200px; max-width:260px"><i data-lucide="search" style="width:16px;height:16px;color:#94a3b8"></i><input id="headerSearch" placeholder="Search" /></div>
+            <button class="btn btn-primary" id="topnavAction"><i data-lucide="layout-grid" style="width:16px;height:16px"></i> Open Board <i data-lucide="arrow-right" style="width:14px;height:14px"></i></button>
+          </div>
+        </div>
+
+        <div class="summary-row" id="summaryRow">
+          <div class="summary-card"><div class="summary-icon overdue"><i data-lucide="alert-triangle" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroOverdue">0</div><div class="summary-label">Overdue</div></div></div>
+          <div class="summary-card"><div class="summary-icon today"><i data-lucide="clock" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroDueToday">0</div><div class="summary-label">Due Today</div></div></div>
+          <div class="summary-card"><div class="summary-icon upcoming"><i data-lucide="calendar-days" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroUpcoming">0</div><div class="summary-label">Upcoming</div></div></div>
+          <div class="summary-card"><div class="summary-icon completed"><i data-lucide="check-circle-2" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroCompleted">0</div><div class="summary-label">Completed</div></div></div>
+          <div class="summary-card"><div class="summary-icon progress"><i data-lucide="bar-chart-3" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroRate">0%</div><div class="summary-label">Progress</div></div></div>
+        </div>
+
+        <div class="filter-toolbar">
+          <select id="projectFilter" class="form-select" style="min-width:160px"><option value="">All Projects</option></select>
+          <div class="search-box" style="flex:1"><i data-lucide="search" style="width:16px;height:16px;color:#94a3b8"></i><input id="searchInput" placeholder="Search tasks..." /></div>
+          <select id="priorityFilter" class="form-select" style="min-width:130px"><option value="">All Priorities</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select>
+          <select id="sortBy" class="form-select" style="min-width:140px"><option value="dueDate">Sort: Due Date</option><option value="priority">Sort: Priority</option><option value="created">Sort: Created</option></select>
+          <div class="view-toggle" id="viewToggle">
+            <button class="view-btn active" data-view="board"><i data-lucide="layout-grid" style="width:14px;height:14px"></i> Board</button>
+            <button class="view-btn" data-view="list"><i data-lucide="list" style="width:14px;height:14px"></i> List</button>
+          </div>
+        </div>
+
+        <div id="sections">
+          <section class="task-section" data-section="OVERDUE">
+            <div class="task-section-head" data-collapse="OVERDUE">
+              <span class="task-section-title overdue"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i> Overdue <span id="countOverdue" class="task-section-count">0</span></span>
+              <i data-lucide="chevron-down" style="width:14px;height:14px;color:#94a3b8;margin-left:auto" class="collapse-icon"></i>
+            </div>
+            <div id="listOverdue" class="task-grid"></div>
+            <div id="listOverdueList" class="list-view hidden"></div>
+            <div id="emptyOverdue" class="empty-compact hidden"><i data-lucide="check-circle-2" style="width:16px;height:16px;color:#059669"></i> No overdue tasks</div>
+          </section>
+          <section class="task-section" data-section="DUE_TODAY">
+            <div class="task-section-head" data-collapse="DUE_TODAY">
+              <span class="task-section-title today"><i data-lucide="clock" style="width:14px;height:14px"></i> Due Today <span id="countDueToday" class="task-section-count">0</span></span>
+              <i data-lucide="chevron-down" style="width:14px;height:14px;color:#94a3b8;margin-left:auto" class="collapse-icon"></i>
+            </div>
+            <div id="listDueToday" class="task-grid"></div>
+            <div id="listDueTodayList" class="list-view hidden"></div>
+            <div id="emptyDueToday" class="empty-compact hidden">No tasks due today</div>
+          </section>
+          <section class="task-section" data-section="UPCOMING">
+            <div class="task-section-head" data-collapse="UPCOMING">
+              <span class="task-section-title upcoming"><i data-lucide="calendar-days" style="width:14px;height:14px"></i> Upcoming <span id="countUpcoming" class="task-section-count">0</span></span>
+              <i data-lucide="chevron-down" style="width:14px;height:14px;color:#94a3b8;margin-left:auto" class="collapse-icon"></i>
+            </div>
+            <div id="listUpcoming" class="task-grid"></div>
+            <div id="listUpcomingList" class="list-view hidden"></div>
+            <div id="emptyUpcoming" class="empty-compact hidden">No upcoming tasks</div>
+          </section>
+          <section class="task-section" data-section="COMPLETED">
+            <div class="task-section-head" data-collapse="COMPLETED">
+              <span class="task-section-title completed"><i data-lucide="check-circle-2" style="width:14px;height:14px"></i> Completed <span id="countCompleted" class="task-section-count">0</span></span>
+              <i data-lucide="chevron-down" style="width:14px;height:14px;color:#94a3b8;margin-left:auto" class="collapse-icon"></i>
+            </div>
+            <div id="listCompleted" class="task-grid"></div>
+            <div id="listCompletedList" class="list-view hidden"></div>
+            <div id="emptyCompleted" class="empty-compact hidden">No completed tasks</div>
+          </section>
+        </div>
+
+        <div id="empty" class="empty-centered hidden">
+          <div class="empty-centered-icon"><i data-lucide="check-circle-2" style="width:24px;height:24px"></i></div>
+          <div style="font-weight:700">You're all caught up</div>
+          <div style="font-size:13px; color:#64748b; max-width:320px">No assigned tasks need your attention.</div>
+          <button class="btn btn-primary" onclick="location.href='/pages/board.html'"><i data-lucide="layout-grid" style="width:16px;height:16px"></i> Open Board</button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <template id="issueCardTemplate">
+    <div class="issue-card">
+      <div class="issue-card-header"><span class="issue-key"></span><span class="issue-type-badge"></span></div>
+      <div class="issue-title"></div>
+      <div class="issue-meta"><span class="priority-badge"></span><span class="comment-count"></span></div>
+      <div class="issue-footer"><div class="assignee"><div class="avatar-sm"></div><span class="assignee-name"></span></div><div class="due-section"><div class="due-label"></div><div class="due-date"></div></div></div>
+      <div class="deadline-badge"></div>
+      <div class="completed-box"><span class="completed-text"></span><span class="completed-meta"></span></div>
+    </div>
+  </template>
+
+  <!-- Compact task card template -->
+  <template id="compactCardTemplate">
+    <div class="task-card-compact">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px">
+        <span class="issue-key mono"></span>
+        <span class="issue-type-badge"></span>
+      </div>
+      <div class="task-card-title" style="margin-top:6px"></div>
+      <div style="display:flex; align-items:center; gap:6px; margin-top:8px">
+        <span class="priority-badge" style="font-size:10px"></span>
+        <span class="task-status" style="font-size:11px; color:#64748b; font-weight:600"></span>
+      </div>
+      <div class="task-card-foot">
+        <span class="deadline"><i data-lucide="calendar" style="width:12px;height:12px"></i> <span class="due-text"></span></span>
+        <span class="project-name" style="font-size:11px; color:#64748b"></span>
+      </div>
+    </div>
+  </template>
+
+  <template id="listRowTemplate">
+    <div class="list-row">
+      <span class="issue-key mono"></span>
+      <div style="min-width:0">
+        <div class="list-title" style="font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis"></div>
+        <div class="list-sub" style="font-size:11px; color:#64748b"></div>
+      </div>
+      <span class="priority-badge hide-m"></span>
+      <span class="deadline-badge hide-m"></span>
+      <span class="due-date hide-m" style="font-size:12px; font-weight:600; text-align:right"></span>
+    </div>
+  </template>
+
+  <template id="emptyRowTemplate"><div class="empty-compact">No tasks</div></template>
+
+  <script type="module" src="/js/pages/mytasks.js"></script>
+  <script>document.addEventListener('DOMContentLoaded',()=>{ if(window.lucide) lucide.createIcons(); });</script>
+</body>
+</html>

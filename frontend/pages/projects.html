@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Projects — jiraLite</title>
+  <link rel="stylesheet" href="/css/global.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">◆</div>
+        <div>
+          <div class="brand-text">jira<span>Lite</span></div>
+          <div class="brand-sub">Project Platform</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Workspace</div>
+        <a class="nav-item" data-nav="dashboard" href="/pages/dashboard.html" data-role="admin"><i data-lucide="layout-dashboard" class="nav-icon"></i> Dashboard</a>
+        <a class="nav-item" data-nav="projects" href="/pages/projects.html"><i data-lucide="folder-kanban" class="nav-icon"></i> Projects</a>
+        <a class="nav-item" data-nav="board" href="/pages/board.html"><i data-lucide="kanban-square" class="nav-icon"></i> Board</a>
+        <a class="nav-item" data-nav="assign" href="/pages/assign.html"><i data-lucide="zap" class="nav-icon"></i> Assign</a>
+        <a class="nav-item" data-nav="review" href="/pages/review.html"><i data-lucide="clipboard-check" class="nav-icon"></i> Review</a>
+        <a class="nav-item" data-nav="mytasks" href="/pages/mytasks.html"><i data-lucide="check-square" class="nav-icon"></i> My Tasks</a>
+        <a class="nav-item" data-nav="members" href="/pages/members.html"><i data-lucide="users" class="nav-icon"></i> Members</a>
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" data-nav="reports" href="/pages/reports.html" data-role="admin"><i data-lucide="bar-chart-3" class="nav-icon"></i> Reports</a>
+        <a class="nav-item" href="#" id="settingsLink"><i data-lucide="settings" class="nav-icon"></i> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-mini">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Loading...</div>
+            <div class="user-email" id="userEmail"></div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header id="topnav" class="topnav">
+        <div class="topnav-left">
+          <button id="mobileMenuBtn" class="btn btn-ghost btn-icon" aria-label="Toggle sidebar"><i data-lucide="menu" style="width:18px;height:18px"></i></button>
+          <div>
+            <h1 id="topnavTitle">Projects</h1>
+            <p id="topnavSubtitle">Create and manage projects — each gets its own workflow and board.</p>
+          </div>
+        </div>
+        <div class="topnav-right">
+          <div class="search-box"><i data-lucide="search" style="width:16px;height:16px;color:#94a3b8"></i><input id="globalSearchInput" placeholder="Search issues, projects..." /></div>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <div class="filter-bar">
+          <div class="search-box" style="flex:1;max-width:360px"><i data-lucide="search" style="width:16px;height:16px;color:#94a3b8"></i><input id="projectSearch" placeholder="Search projects by name or key..." /></div>
+          <button class="btn btn-primary" id="createProjectBtn"><i data-lucide="plus" style="width:16px;height:16px"></i> Create Project</button>
+        </div>
+        <div id="projectGrid" class="project-grid"></div>
+        <div id="emptyProjects" class="empty-state hidden">
+          <div class="empty-icon"><i data-lucide="folder-kanban" style="width:24px;height:24px"></i></div>
+          <div class="empty-title">No projects yet</div>
+          <div class="empty-desc">Create your first project to start tracking work.</div>
+          <button class="btn btn-primary" id="emptyCreateBtn"><i data-lucide="plus" style="width:16px;height:16px"></i> Create Project</button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- CREATE MODAL — generic with workflow -->
+  <div class="modal-overlay" id="projectModal">
+    <div class="modal" style="max-width:580px">
+      <div class="modal-header"><div class="modal-title">Create Project</div><button class="modal-close" data-close aria-label="Close">×</button></div>
+      <form id="projectForm" class="modal-body">
+        <div class="form-group"><label class="form-label">Project name <span class="required">*</span></label><input class="form-input" id="projName" placeholder="Website Redesign" required /></div>
+        <div class="form-group"><label class="form-label">Project key <span class="required">*</span></label><input class="form-input mono" id="projKey" placeholder="WEB" maxlength="10" required style="text-transform:uppercase" /><div class="form-hint">2–10 letters, used as issue prefix e.g. WEB-1</div></div>
+        <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="projDesc" placeholder="What is this project about?"></textarea></div>
+        <div class="form-group">
+          <label class="form-label">Workflow Template</label>
+          <select class="form-select" id="projWorkflow">
+            <option value="basic">Basic — To Do → In Progress → Done</option>
+            <option value="software" selected>Software — Backlog → To Do → In Progress → In Review → Done</option>
+            <option value="agile">Agile — Backlog → Selected → In Progress → Review → Done</option>
+            <option value="custom">Custom — create your own</option>
+          </select>
+        </div>
+        <div class="custom-workflow-editor hidden" id="customWorkflowEditor" style="border:1px solid #e2e8f0; border-radius:10px; padding:12px; background:#f8fafc">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px">
+            <span style="font-size:13px; font-weight:700">Custom Workflow</span>
+            <button type="button" class="btn btn-ghost btn-sm" id="addWorkflowStatusBtn"><i data-lucide="plus" style="width:14px;height:14px"></i> Add Status</button>
+          </div>
+          <div id="customWorkflowList" style="display:flex; flex-direction:column; gap:8px"></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-ghost" data-close>Cancel</button><button type="submit" class="btn btn-primary" id="projSubmitBtn"><i data-lucide="plus" style="width:16px;height:16px"></i> Create Project</button></div>
+      </form>
+    </div>
+  </div>
+
+  <template id="projectCardTemplate">
+    <div class="project-card">
+      <div class="project-card-head">
+        <span class="project-key"></span>
+        <span class="project-status"></span>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px">
+        <div class="project-name" style="flex:1"></div>
+        <button class="btn btn-ghost btn-sm edit-proj-btn" title="Edit project name" aria-label="Edit project"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
+      </div>
+      <div class="project-desc"></div>
+      <div class="workflow-preview" style="display:flex; gap:4px; flex-wrap:wrap; font-size:11px"></div>
+      <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill"></div></div><span class="progress-text"></span></div>
+      <div class="project-meta"><span class="meta-members"></span><span class="meta-dot">•</span><span class="meta-issues"></span><span class="meta-dot">•</span><span class="meta-done"></span></div>
+      <div class="project-actions"><button class="btn btn-primary btn-sm board-btn"><i data-lucide="layout-grid" style="width:14px;height:14px"></i> View Board</button><button class="btn btn-ghost btn-sm details-btn">Details</button></div>
+    </div>
+  </template>
+
+  <!-- EDIT PROJECT MODAL — Jira-like flow: change project name -->
+  <div class="modal-overlay" id="editProjectModal">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-header"><div class="modal-title">Edit Project</div><button class="modal-close" data-close aria-label="Close">×</button></div>
+      <form id="editProjectForm" class="modal-body">
+        <div class="form-group"><label class="form-label">Project name <span class="required">*</span></label><input class="form-input" id="editProjName" required /></div>
+        <div class="form-group"><label class="form-label">Project key</label><input class="form-input mono" id="editProjKey" readonly style="background:#f8fafc; color:#64748b" /><div class="form-hint">Key cannot be changed after creation (affects issue keys like WEB-12).</div></div>
+        <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="editProjDesc"></textarea></div>
+        <div class="modal-footer"><button type="button" class="btn btn-ghost" data-close>Cancel</button><button type="submit" class="btn btn-primary" id="editProjSubmitBtn"><i data-lucide="check" style="width:14px;height:14px"></i> Save changes</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADD WORKFLOW STATUS MODAL — replaces window.prompt -->
+  <div class="modal-overlay" id="addStatusModal" role="dialog" aria-modal="true" aria-labelledby="addStatusTitle">
+    <div class="modal" style="max-width:440px; width:100%; border-radius:18px">
+      <div class="modal-header" style="border-bottom:none; padding-bottom:0">
+        <div>
+          <div class="modal-title" id="addStatusTitle" style="font-size:15px">Add workflow status</div>
+          <div style="font-size:13px; color:#64748b; margin-top:4px; line-height:1.4">Create a new status for this workflow.</div>
+        </div>
+        <button class="modal-close" data-close aria-label="Close">×</button>
+      </div>
+      <div class="modal-body" style="padding-top:16px">
+        <div class="form-group">
+          <label class="form-label" for="addStatusInput">Status name</label>
+          <input class="form-input" id="addStatusInput" placeholder="Enter status name..." autocomplete="off" />
+          <div id="addStatusError" style="display:none; color:#dc2626; font-size:12px; margin-top:6px">Status name is required.</div>
+        </div>
+      </div>
+      <div class="modal-footer" style="background:white; border-top:1px solid #f1f5f9">
+        <button type="button" class="btn btn-ghost" id="addStatusCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="addStatusConfirm" style="background:#4F46E5">Add Status</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/pages/projects.js"></script>
+  <script>document.addEventListener('DOMContentLoaded',()=>{ if(window.lucide) lucide.createIcons(); });</script>
+</body>
+</html>

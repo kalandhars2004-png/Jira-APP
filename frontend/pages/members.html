@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Members — jiraLite</title>
+  <link rel="stylesheet" href="/css/global.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">◆</div>
+        <div>
+          <div class="brand-text">jira<span>Lite</span></div>
+          <div class="brand-sub">Project Platform</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Workspace</div>
+        <a class="nav-item" data-nav="dashboard" href="/pages/dashboard.html"><span class="nav-icon">◧</span> Dashboard</a>
+        <a class="nav-item" data-nav="projects" href="/pages/projects.html"><span class="nav-icon">▣</span> Projects</a>
+        <a class="nav-item" data-nav="board" href="/pages/board.html"><span class="nav-icon">☰</span> Board</a>
+        <a class="nav-item" data-nav="mytasks" href="/pages/mytasks.html"><span class="nav-icon">✓</span> My Tasks</a>
+        <a class="nav-item" data-nav="members" href="/pages/members.html"><span class="nav-icon">◐</span> Members</a>
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" data-nav="reports" href="/pages/reports.html"><span class="nav-icon">▦</span> Reports</a>
+        <a class="nav-item" href="#" id="settingsLink"><span class="nav-icon">⚙</span> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-mini">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Loading...</div>
+            <div class="user-email" id="userEmail"></div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header id="topnav" class="topnav">
+        <div class="topnav-left">
+          <button id="mobileMenuBtn" class="btn btn-ghost btn-icon">☰</button>
+          <div>
+            <h1 id="topnavTitle">Members</h1>
+            <p id="topnavSubtitle">Manage project members and roles. Members dynamically load for assignment.</p>
+          </div>
+        </div>
+        <div class="topnav-right">
+          <div class="search-box"><span>⌕</span><input id="globalSearchInput" placeholder="Search issues, projects..." /></div>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <div class="filter-bar">
+          <select id="projectSelect" class="form-select" style="min-width:260px"></select>
+          <button class="btn btn-primary" id="addMemberBtn">+ Add Member</button>
+        </div>
+        <div id="memberGrid" class="project-grid"></div>
+        <div class="card" style="margin-top:18px">
+          <div class="card-header"><span class="card-title">Available Users</span><span class="card-sub">Click to add to project</span></div>
+          <div class="card-pad" id="availableUsers" style="display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <template id="memberCardTemplate">
+    <div class="card card-pad member-card">
+      <div class="member-head">
+        <div class="user-avatar member-avatar"></div>
+        <div class="member-info">
+          <div class="member-name"></div>
+          <div class="member-email"></div>
+        </div>
+        <span class="member-role"></span>
+      </div>
+      <div class="member-foot"><span class="member-assigned"></span><span class="member-joined"></span></div>
+      <button class="btn btn-ghost btn-sm remove-btn">Remove</button>
+    </div>
+  </template>
+
+  <template id="availableUserTemplate">
+    <div class="member-row">
+      <div class="available-left"><div class="avatar-sm"></div><div class="available-info"><div class="available-name"></div><div class="available-sub"></div></div></div>
+      <div class="available-actions"><select class="form-select role-select"><option>MEMBER</option><option>DEVELOPER</option><option>TESTER</option><option>PROJECT_MANAGER</option></select><button class="btn btn-primary btn-sm add-btn">Add</button></div>
+    </div>
+  </template>
+
+  <script type="module" src="/js/pages/members.js"></script>
+</body>
+</html>

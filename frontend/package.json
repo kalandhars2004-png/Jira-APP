@@ -1,0 +1,12 @@
+{
+  "name": "jiralite-frontend",
+  "version": "1.0.0",
+  "description": "JiraLite — Vanilla JS frontend (ES6+, HTML templates, no framework)",
+  "type": "module",
+  "scripts": {
+    "serve": "npx http-server . -p 5500 --cors -c-1",
+    "dev": "npx http-server . -p 5500 --cors -c-1"
+  },
+  "keywords": ["jira", "vanilla-js", "es6"],
+  "author": ""
+}

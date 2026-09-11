@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Review — jiraLite</title>
+  <link rel="stylesheet" href="/css/global.css" />
+  <style>
+    /* Review production layout — balanced 60/40, no excessive whitespace */
+    .review-page { max-width: 1280px; margin: 0 auto; }
+    .review-page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:14px; }
+    .review-title-block h2 { font-size:20px; font-weight:800; letter-spacing:-.02em; line-height:1.1; }
+    .review-title-block p { font-size:13px; color:#64748b; margin-top:4px; line-height:1.4; max-width:560px; }
+    .review-header-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .review-count-pill { background:#f8fafc; border:1px solid #e2e8f0; color:#334155; padding:6px 10px; border-radius:99px; font-size:12px; font-weight:700; white-space:nowrap; }
+    .review-count-pill.has-pending { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+
+    .review-layout { display:grid; grid-template-columns: 62% 38%; gap:16px; align-items:start; }
+    @media (max-width: 1024px) { .review-layout { grid-template-columns: 58% 42%; } }
+    @media (max-width: 860px) {
+      .review-layout { grid-template-columns: 1fr; }
+      .review-detail-sticky { position: static !important; }
+    }
+
+    /* Queue */
+    .queue-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+    .queue-title { font-size:11px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:#64748b; }
+    .queue-list { display:flex; flex-direction:column; gap:10px; }
+    .queue-list { max-height: calc(100vh - 210px); overflow:auto; padding-right:4px; }
+    @media (max-width: 860px) { .queue-list { max-height: none; overflow: visible; } }
+
+    /* Jira review card — real hierarchy */
+    .review-card { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:14px; cursor:pointer; transition: border-color .16s, box-shadow .16s, transform .16s; }
+    .review-card:hover { border-color:#cbd5e1; box-shadow:0 4px 12px rgba(15,23,42,.06); transform: translateY(-1px); }
+    .review-card.active { border-color:#4f46e5; box-shadow:0 0 0 3px #eef2ff, 0 4px 12px rgba(79,70,229,.08); }
+    .review-card:focus-visible { outline:2px solid #4f46e5; outline-offset:2px; }
+    .review-card-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .review-key { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; padding:3px 7px; border-radius:6px; }
+    .review-card-title { font-size:14px; font-weight:700; line-height:1.35; color:#0f172a; margin-top:8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .review-card-meta { display:flex; flex-direction:column; gap:4px; margin-top:10px; font-size:12px; color:#475569; }
+    .review-card-meta div { display:flex; gap:6px; }
+    .review-card-meta b { color:#334155; font-weight:600; min-width:64px; }
+    .review-card-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9; }
+    .review-status { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:3px 8px; border-radius:99px; }
+    .review-due { font-size:11px; font-weight:600; }
+    .review-due.overdue { color:#dc2626; }
+    .review-due.soon { color:#b45309; }
+    .review-due.ok { color:#64748b; }
+
+    /* Right detail — sticky */
+    .review-detail-sticky { position:sticky; top:76px; }
+    .review-detail-card { background:white; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+    .detail-head { padding:16px 16px 12px; border-bottom:1px solid #f1f5f9; }
+    .detail-head-key { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#64748b; }
+    .detail-head-title { font-size:16px; font-weight:800; line-height:1.3; color:#0f172a; margin-top:4px; }
+    .detail-head-row { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+    .status-progress { display:flex; align-items:center; gap:4px; margin-top:10px; font-size:11px; }
+    .status-step { flex:1; height:4px; background:#f1f5f9; border-radius:99px; }
+    .status-step.active { background:#4f46e5; }
+    .status-step.done { background:#cbd5e1; }
+    .status-labels { display:flex; justify-content:space-between; font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:#94a3b8; margin-top:4px; }
+
+    .detail-grid { display:grid; grid-template-columns: 1fr 1fr; gap:10px 14px; padding:14px 16px; background:#fcfcfd; border-bottom:1px solid #f1f5f9; }
+    .detail-field { display:flex; flex-direction:column; gap:2px; }
+    .detail-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#94a3b8; }
+    .detail-value { font-size:13px; font-weight:600; color:#0f172a; word-break:break-word; }
+    .detail-value.desc { font-weight:400; color:#334155; background:white; border:1px solid #e2e8f0; padding:10px; border-radius:8px; line-height:1.5; margin-top:4px; }
+
+    .detail-section { padding:14px 16px; }
+    .detail-section h4 { font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#334155; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+    .activity-timeline { position:relative; padding-left:14px; max-height:280px; overflow:auto; }
+    .activity-timeline::before { content:""; position:absolute; left:5px; top:6px; bottom:6px; width:1px; background:#e2e8f0; }
+    .timeline-item { position:relative; display:flex; gap:10px; padding:8px 0 8px 8px; }
+    .timeline-dot { position:absolute; left:-9px; top:10px; width:10px; height:10px; border-radius:50%; background:white; border:2px solid #94a3b8; }
+    .timeline-item.approved .timeline-dot { border-color:#059669; background:#059669; }
+    .timeline-item.moved .timeline-dot { border-color:#4f46e5; background:#4f46e5; }
+    .timeline-item.comment .timeline-dot { border-color:#f59e0b; background:#fffbeb; border-width:2px; }
+    .timeline-content { flex:1; min-width:0; }
+    .timeline-text { font-size:12px; font-weight:600; color:#0f172a; line-height:1.4; }
+    .timeline-sub { font-size:11px; color:#64748b; margin-top:2px; }
+    .timeline-time { font-size:11px; color:#94a3b8; margin-top:2px; }
+
+    .review-actions { padding:14px 16px; border-top:1px solid #e2e8f0; background:#f8fafc; display:flex; flex-direction:column; gap:8px; }
+    .btn-approve { background:#0f172a; color:white; width:100%; justify-content:center; border:1px solid #0f172a; }
+    .btn-approve:hover { background:#1e293b; }
+    .btn-approve:focus-visible { outline:2px solid #0f172a; outline-offset:2px; }
+    .btn-reject { background:white; color:#991b1b; border:1px solid #fecaca; width:100%; justify-content:center; }
+    .btn-reject:hover { background:#fef2f2; border-color:#fca5a5; }
+    .btn-reject:focus-visible { outline:2px solid #fecaca; outline-offset:2px; }
+
+    /* Confirm dialog */
+    .confirm-overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:90; padding:16px; }
+    .confirm-overlay.open { display:flex; }
+    .confirm-box { background:white; border:1px solid #e2e8f0; border-radius:12px; max-width:420px; width:100%; padding:18px; box-shadow:0 20px 40px rgba(15,23,42,.12); }
+    .confirm-title { font-size:15px; font-weight:800; }
+    .confirm-desc { font-size:13px; color:#475569; margin-top:6px; line-height:1.5; }
+    .confirm-actions { display:flex; gap:8px; margin-top:14px; justify-content:flex-end; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">◆</div>
+        <div>
+          <div class="brand-text">jira<span>Lite</span></div>
+          <div class="brand-sub">Project Platform</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Workspace</div>
+        <a class="nav-item" data-nav="dashboard" href="/pages/dashboard.html"><span class="nav-icon">◧</span> Dashboard</a>
+        <a class="nav-item" data-nav="projects" href="/pages/projects.html"><span class="nav-icon">▣</span> Projects</a>
+        <a class="nav-item" data-nav="board" href="/pages/board.html"><span class="nav-icon">☰</span> Board</a>
+        <a class="nav-item" data-nav="assign" href="/pages/assign.html"><span class="nav-icon">⚡</span> Assign</a>
+        <a class="nav-item" data-nav="review" href="/pages/review.html"><span class="nav-icon">👁</span> Review</a>
+        <a class="nav-item" data-nav="mytasks" href="/pages/mytasks.html"><span class="nav-icon">✓</span> My Tasks</a>
+        <a class="nav-item" data-nav="members" href="/pages/members.html"><span class="nav-icon">◐</span> Members</a>
+        <div class="nav-section-label">Tools</div>
+        <a class="nav-item" data-nav="reports" href="/pages/reports.html"><span class="nav-icon">▦</span> Reports</a>
+        <a class="nav-item" href="#" id="settingsLink"><span class="nav-icon">⚙</span> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-mini">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Loading...</div>
+            <div class="user-email" id="userEmail"></div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header id="topnav" class="topnav">
+        <div class="topnav-left">
+          <button id="mobileMenuBtn" class="btn btn-ghost btn-icon">☰</button>
+          <div>
+            <h1 id="topnavTitle">Review</h1>
+            <p id="topnavSubtitle">Validate completed work before it ships.</p>
+          </div>
+        </div>
+        <div class="topnav-right">
+          <div class="search-box"><span>⌕</span><input id="globalSearchInput" placeholder="Search issues, projects..." /></div>
+        </div>
+      </header>
+
+      <main class="page-content review-page">
+        <div class="review-page-header">
+          <div class="review-title-block">
+            <h2>Review</h2>
+            <p>Issues awaiting approval. When assignee moves to <b>In Review</b>, it appears for the reporter.</p>
+          </div>
+          <div class="review-header-actions">
+            <select id="projectSelect" class="form-select" style="min-width:200px"></select>
+            <div class="view-toggle" id="reviewViewToggle">
+              <button class="view-btn active" data-view="my"><i data-lucide="user" style="width:14px;height:14px"></i> My Reviews</button>
+              <button class="view-btn" data-view="all"><i data-lucide="users" style="width:14px;height:14px"></i> All</button>
+            </div>
+            <span class="review-count-pill" id="reviewCount">0 awaiting</span>
+          </div>
+        </div>
+
+        <div class="review-layout">
+          <!-- LEFT — queue (60-65%) -->
+          <div>
+            <div class="queue-header">
+              <span class="queue-title">In Review Queue</span>
+              <span style="font-size:12px; color:#94a3b8" id="queueHint">Select an issue to review</span>
+            </div>
+            <div id="reviewList" class="queue-list" role="list"></div>
+            <div id="emptyReview" class="empty-state hidden" style="margin-top:12px">
+              <div class="empty-icon">👁</div>
+              <div class="empty-title">No issues in review</div>
+              <div class="empty-desc">Move issues to <b>In Review</b> from Board to see them here.</div>
+            </div>
+          </div>
+
+          <!-- RIGHT — details (35-40%) sticky -->
+          <div id="reviewDetail" class="review-detail-sticky hidden">
+            <div class="review-detail-card">
+              <div class="detail-head">
+                <div class="detail-head-key" id="detailKey">—</div>
+                <div class="detail-head-title" id="detailTitle">Select an issue</div>
+                <div class="detail-head-row">
+                  <span id="detailDeadline" class="deadline-badge hidden"></span>
+                  <span id="detailPriority" class="priority-badge hidden"></span>
+                  <span id="detailType" class="issue-type-badge hidden"></span>
+                </div>
+                <!-- status visualization -->
+                <div class="status-progress" aria-label="Workflow progress">
+                  <div class="status-step" data-step="TODO"></div>
+                  <div class="status-step" data-step="IN_PROGRESS"></div>
+                  <div class="status-step" data-step="DONE"></div>
+                  <div class="status-step active" data-step="IN_REVIEW"></div>
+                  <div class="status-step" data-step="APPROVED"></div>
+                </div>
+                <div class="status-labels">
+                  <span>To Do</span><span>In Progress</span><span>Done</span><span>In Review</span><span>Approved</span>
+                </div>
+              </div>
+
+              <div class="detail-grid" id="leftPane">
+                <!-- grid fields injected by JS: TYPE, PRIORITY, STATUS, ASSIGNEE, REPORTER, PROJECT, DUE DATE -->
+              </div>
+
+              <div class="detail-section">
+                <h4>● Description</h4>
+                <div id="detailDesc" style="font-size:13px; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; padding:10px; border-radius:8px; line-height:1.5; min-height:52px">—</div>
+              </div>
+
+              <div class="detail-section" style="border-top:1px solid #f1f5f9;">
+                <h4>↻ Changes</h4>
+                <div id="rightPane" class="activity-timeline"></div>
+              </div>
+
+              <div style="padding:12px 16px; border-top:1px solid #e2e8f0; background:#fcfcfd;">
+                <label class="form-label" for="reviewComment">Comment <span style="font-weight:400; color:#64748b">(required for reject)</span></label>
+                <textarea id="reviewComment" class="form-textarea" placeholder="Add review comment… e.g. Looks good or Needs rework: fix validation" style="min-height:78px"></textarea>
+              </div>
+
+              <div class="review-actions">
+                <button class="btn btn-approve" id="approveBtn">✓ Approve &amp; Complete</button>
+                <button class="btn btn-reject" id="rejectBtn">↩ Reject &amp; Reassign</button>
+                <div style="font-size:11px; color:#94a3b8; text-align:center">Approve → <b>IN_REVIEW → DONE</b> &nbsp;•&nbsp; Reject → <b>IN_REVIEW → IN_PROGRESS</b> + same assignee</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Confirm dialogs — HTML only, no JS strings -->
+  <div class="confirm-overlay" id="approveConfirm" role="dialog" aria-modal="true" aria-labelledby="approveConfirmTitle">
+    <div class="confirm-box">
+      <div class="confirm-title" id="approveConfirmTitle">Approve this issue?</div>
+      <div class="confirm-desc">This will move the issue to <b>DONE</b> and mark it as completed. The assignee will be notified and the deadline status will update to <b>Completed</b>.</div>
+      <div class="confirm-actions">
+        <button class="btn btn-ghost" id="approveCancel">Cancel</button>
+        <button class="btn btn-approve" id="approveConfirmBtn">✓ Approve</button>
+      </div>
+    </div>
+  </div>
+  <div class="confirm-overlay" id="rejectConfirm" role="dialog" aria-modal="true" aria-labelledby="rejectConfirmTitle">
+    <div class="confirm-box">
+      <div class="confirm-title" id="rejectConfirmTitle">Reject and reassign?</div>
+      <div class="confirm-desc">This will move the issue back to <b>IN_PROGRESS</b>, keep the same assignee, and post your comment for rework.</div>
+      <div class="confirm-actions">
+        <button class="btn btn-ghost" id="rejectCancel">Cancel</button>
+        <button class="btn btn-reject" id="rejectConfirmBtn">↩ Reject</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEMPLATES — keep for JS (no redesign of data) -->
+  <template id="reviewCardTemplate">
+    <div class="review-card" role="listitem" tabindex="0">
+      <div class="review-card-top">
+        <span class="review-issue-key"></span>
+        <span class="priority-badge"></span>
+      </div>
+      <div class="review-card-title"></div>
+      <div class="review-card-meta">
+        <div><b>Assignee:</b> <span class="review-assignee"></span></div>
+        <div><b>Reporter:</b> <span class="review-reporter"></span></div>
+        <div><b>Due:</b> <span class="review-due"></span></div>
+      </div>
+      <div class="review-card-foot">
+        <span class="review-status">IN REVIEW</span>
+        <span class="issue-type-badge"></span>
+      </div>
+    </div>
+  </template>
+
+  <template id="changeItemTemplate">
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-content">
+        <div class="timeline-text change-details"></div>
+        <div class="timeline-sub change-time"></div>
+      </div>
+    </div>
+  </template>
+
+  <script type="module" src="/js/pages/review.js"></script>
+</body>
+</html>
