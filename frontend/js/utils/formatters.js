@@ -1,19 +1,41 @@
 // ES6+ utils — arrow functions, const/let, template literals, optional chaining
+export const toDate = (v) => {
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+};
+
 export const formatDate = (dateStr) => {
-  if (!dateStr) return '-';
-  const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr;
+  const d = toDate(dateStr);
+  if (!d) return '-';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 export const formatDateShort = (dateStr) => {
-  if (!dateStr) return '-';
-  const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr;
+  const d = toDate(dateStr);
+  if (!d) return '-';
   const today = new Date(); today.setHours(0,0,0,0);
   const dd = new Date(d); dd.setHours(0,0,0,0);
   if (dd.getTime() === today.getTime()) return 'Today';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+export const formatTime = (v) => {
+  const d = toDate(v);
+  if (!d) return '';
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+};
+
+export const formatDayName = (v) => {
+  const d = toDate(v);
+  if (!d) return '';
+  return d.toLocaleDateString('en-US', { weekday: 'short' });
+};
+
+export const formatDateTime = (v) => {
+  const d = toDate(v);
+  if (!d) return '';
+  return `${formatDate(d)} at ${formatTime(d)}`;
 };
 
 export const initials = (name) => {

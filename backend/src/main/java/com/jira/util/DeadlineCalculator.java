@@ -1,66 +1,69 @@
 package com.jira.util;
 
 import com.jira.enums.DeadlineStatus;
-import com.jira.enums.Status;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class DeadlineCalculator {
 
     private DeadlineCalculator() {}
 
-    // Keep enum overload for backward compat
-    public static DeadlineStatus calculate(LocalDate dueDate, Status status) {
-        return calculate(dueDate, status != null ? status.name() : null, LocalDate.now());
-    }
-    public static DeadlineStatus calculate(LocalDate dueDate, Status status, LocalDate currentDate) {
-        return calculate(dueDate, status != null ? status.name() : null, currentDate);
-    }
-
-    /**
-     * Core business rule - fully dynamic, generic workflow.
-     * Rules:
-     *  if status == DONE (or last workflow stage) -> COMPLETED
-     *  else if currentDate < dueDate -> UPCOMING
-     *  else if currentDate == dueDate -> DUE_TODAY
-     *  else -> OVERDUE
-     */
+    // Legacy LocalDate overloads — preserved so callers using date-only still compile.
+    // A date-only dueDate is treated as midnight (end of start-of-day boundary is excluded).
     public static DeadlineStatus calculate(LocalDate dueDate, String status) {
-        return calculate(dueDate, status, LocalDate.now());
+        return calculate(dueDate != null ? dueDate.atStartOfDay() : null, status, LocalDateTime.now());
     }
-
-    // Overload for testing with fixed current date
     public static DeadlineStatus calculate(LocalDate dueDate, String status, LocalDate currentDate) {
-        if (status != null && "DONE".equalsIgnoreCase(status)) {
-            return DeadlineStatus.COMPLETED;
-        }
-        // Generic: treat last workflow stage as DONE is handled at service level with project workflow
-        // For now, also treat APPROVED/PUBLISHED as completed for custom workflows
-        if (status != null && ("APPROVED".equalsIgnoreCase(status) || "PUBLISHED".equalsIgnoreCase(status) || "COMPLETED".equalsIgnoreCase(status))) {
-            return DeadlineStatus.COMPLETED;
-        }
-        if (dueDate == null) {
-            return DeadlineStatus.UPCOMING; // fallback if no due date (should not happen)
-        }
-        if (currentDate.isBefore(dueDate)) {
-            return DeadlineStatus.UPCOMING;
-        } else if (currentDate.isEqual(dueDate)) {
-            return DeadlineStatus.DUE_TODAY;
-        } else {
-            return DeadlineStatus.OVERDUE;
-        }
+        return calculate(dueDate != null ? dueDate.atStartOfDay() : null, status,
+                currentDate != null ? currentDate.atStartOfDay() : LocalDateTime.now());
     }
 
     /**
-     * For DONE issues: determine if completed on time or late
-     * If completedDate <= dueDate -> on time, else late
+     * Core business rule — fully dynamic, generic workflow, MINUTE-LEVEL precision.
+     * Rules:
+     *  if status is a final/completed stage            -> COMPLETED
+     *  else if dueDateTime == null                      -> UPCOMING
+     *  else if now < dueDateTime                        -> DUE_TODAY if due is today, else UPCOMING
+     *  else (now >= dueDateTime)                        -> OVERDUE  (compare year..second)
      */
-    public static boolean isCompletedOnTime(LocalDate dueDate, LocalDate completedDate) {
-        if (dueDate == null || completedDate == null) return true;
-        return !completedDate.isAfter(dueDate);
+    public static DeadlineStatus calculate(LocalDateTime dueDateTime, String status) {
+        return calculate(dueDateTime, status, LocalDateTime.now());
     }
 
-    public static String completionLabel(LocalDate dueDate, LocalDate completedDate) {
+    // Overload for testing with fixed current datetime
+    public static DeadlineStatus calculate(LocalDateTime dueDateTime, String status, LocalDateTime now) {
+        if (status != null && isCompletedStatus(status)) {
+            return DeadlineStatus.COMPLETED;
+        }
+        if (dueDateTime == null) {
+            return DeadlineStatus.UPCOMING; // no due date -> never overdue
+        }
+        if (now.isBefore(dueDateTime)) {
+            LocalDate nowDate = now.toLocalDate();
+            return dueDateTime.toLocalDate().isEqual(nowDate) ? DeadlineStatus.DUE_TODAY : DeadlineStatus.UPCOMING;
+        }
+        return DeadlineStatus.OVERDUE;
+    }
+
+    public static boolean isCompletedStatus(String status) {
+        if (status == null) return false;
+        return "DONE".equalsIgnoreCase(status)
+                || "APPROVED".equalsIgnoreCase(status)
+                || "PUBLISHED".equalsIgnoreCase(status)
+                || "COMPLETED".equalsIgnoreCase(status);
+    }
+
+    /**
+     * For completed (final-stage) issues: determine if completed on time or late.
+     * Completed on time if completedDate <= dueDate day (the due time on that day).
+     */
+    public static boolean isCompletedOnTime(LocalDateTime dueDate, LocalDate completedDate) {
+        if (dueDate == null || completedDate == null) return true;
+        return !completedDate.isAfter(dueDate.toLocalDate());
+    }
+
+    public static String completionLabel(LocalDateTime dueDate, LocalDate completedDate) {
         if (dueDate == null || completedDate == null) return "Completed";
         return isCompletedOnTime(dueDate, completedDate) ? "Completed on time" : "Completed late";
     }

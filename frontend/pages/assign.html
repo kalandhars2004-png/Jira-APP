@@ -120,7 +120,10 @@
         </div>
         <div class="form-group"><label class="form-label">Title <span>*</span></label><input class="form-input" id="uaTitle" placeholder="e.g. Fix checkout validation" required /></div>
         <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="uaDesc" placeholder="Describe the work..."></textarea></div>
-        <div class="form-group"><label class="form-label">Due Date <span>*</span></label><input class="form-input" id="uaDueDate" type="date" required /></div>
+        <div class="form-group"><label class="form-label">Due Date & Time <span>*</span></label><div id="uaDuePicker"></div>
+          <div id="uaDueError" class="hidden" style="display:none; color:#ef4444; font-size:12px; margin-top:4px;">⚠ Please select a due date and time</div>
+          <div id="uaPastError" class="hidden" style="display:none; color:#ef4444; font-size:12px; margin-top:4px;">⚠ Due date and time must be in the future</div>
+        </div>
         <div class="modal-footer"><button type="button" class="btn btn-ghost" data-close>Cancel</button><button type="submit" class="btn btn-primary" id="uaSubmitBtn">Create Unassigned</button></div>
       </form>
     </div>

@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -51,13 +52,14 @@ public class DataSeeder implements CommandLineRunner {
         memberRepo.save(ProjectMember.builder().projectId(mobile.getId()).userId(designer.getId()).role(ProjectRole.DEVELOPER).build());
         memberRepo.save(ProjectMember.builder().projectId(mobile.getId()).userId(dev.getId()).role(ProjectRole.DEVELOPER).build());
 
-        LocalDate today = LocalDate.now();
-        LocalDate yesterday = today.minusDays(1);
-        LocalDate tomorrow = today.plusDays(1);
-        LocalDate in3days = today.plusDays(3);
-        LocalDate in7days = today.plusDays(7);
-        LocalDate twoDaysAgo = today.minusDays(2);
-        LocalDate fiveDaysAgo = today.minusDays(5);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime today = now.plusMinutes(30);          // due later today (still future, same day)
+        LocalDateTime yesterday = now.minusDays(1);
+        LocalDateTime tomorrow = now.plusDays(1);
+        LocalDateTime in3days = now.plusDays(3);
+        LocalDateTime in7days = now.plusDays(7);
+        LocalDateTime twoDaysAgo = now.minusDays(2);
+        LocalDateTime fiveDaysAgo = now.minusDays(5);
 
         // ECOM Issues
         createIssue(ecom, "Fix Payment API", "Payment API returns 500 when coupon is applied. Need to handle edge case.", IssueType.BUG, Priority.HIGH, "IN_PROGRESS", manager.getId(), admin.getId(), yesterday, 1);
@@ -66,11 +68,11 @@ public class DataSeeder implements CommandLineRunner {
         createIssue(ecom, "Update product carousel", "Product carousel not responsive on mobile devices", IssueType.IMPROVEMENT, Priority.LOW, "IN_REVIEW", designer.getId(), admin.getId(), tomorrow, 4);
         createIssue(ecom, "Setup CI/CD pipeline", "Configure Jenkins pipeline for automated deployment", IssueType.TASK, Priority.HIGH, "TODO", dev.getId(), admin.getId(), in7days, 5);
         Issue completedOnTime = createIssue(ecom, "Design checkout flow", "Create wireframes for new checkout experience", IssueType.STORY, Priority.MEDIUM, "DONE", designer.getId(), admin.getId(), in3days, 6);
-        completedOnTime.setCompletedDate(today);
+        completedOnTime.setCompletedDate(LocalDate.now());
         issueRepo.save(completedOnTime);
         activityService.log(completedOnTime.getId(), ecom.getId(), designer.getId(), "COMPLETED_ON_TIME", "ECOM-6 was completed on time");
         Issue completedLate = createIssue(ecom, "Fix inventory sync", "Inventory not syncing between warehouse and store", IssueType.BUG, Priority.HIGH, "DONE", dev.getId(), manager.getId(), fiveDaysAgo, 7);
-        completedLate.setCompletedDate(today);
+        completedLate.setCompletedDate(LocalDate.now());
         issueRepo.save(completedLate);
         activityService.log(completedLate.getId(), ecom.getId(), dev.getId(), "COMPLETED_LATE", "ECOM-7 was completed late");
         createIssue(ecom, "Add wishlist feature", "Allow users to save products to wishlist", IssueType.STORY, Priority.MEDIUM, "TODO", dev.getId(), admin.getId(), yesterday, 8);
@@ -98,7 +100,7 @@ public class DataSeeder implements CommandLineRunner {
         System.out.println("=== Seed completed: 5 users, 3 projects, 15 issues ===");
     }
 
-    private Issue createIssue(Project project, String title, String desc, IssueType type, Priority pri, String status, Long assignee, Long reporter, LocalDate dueDate, int counter) {
+    private Issue createIssue(Project project, String title, String desc, IssueType type, Priority pri, String status, Long assignee, Long reporter, LocalDateTime dueDate, int counter) {
         String key = project.getKey() + "-" + counter;
         if (project.getIssueCounter() == null || project.getIssueCounter() < counter) {
             project.setIssueCounter(counter);
@@ -127,7 +129,7 @@ public class DataSeeder implements CommandLineRunner {
             String assigneeName = assigneeUser != null ? assigneeUser.getName() : "Unknown";
             activityService.log(issue.getId(), project.getId(), reporter, "ASSIGNED", reporterName + " assigned " + key + " to " + assigneeName);
         }
-        if (!"DONE".equalsIgnoreCase(status) && dueDate.isBefore(LocalDate.now())) {
+        if (!"DONE".equalsIgnoreCase(status) && dueDate.isBefore(LocalDateTime.now())) {
             activityService.log(issue.getId(), project.getId(), null, "BECAME_OVERDUE", key + " became overdue.");
         }
         return issue;

@@ -1,5 +1,5 @@
-import { formatDateShort, initials } from '../utils/formatters.js';
-import { calculateDeadlineStatus } from '../utils/deadline.js';
+import { formatDateShort, initials, formatDateTime, formatTime } from '../utils/formatters.js';
+import { liveStatus, dueDisplayText } from '../utils/deadline.js';
 
 // ES6+ — arrow functions, destructuring, optional chaining
 const getBadgeIcon = (ds) => {
@@ -14,13 +14,10 @@ const isOnTime = (issue) => {
   return new Date(issue.completedDate) <= new Date(issue.dueDate);
 };
 
-// Returns HTMLElement (no HTML strings) — clones template if available, else builds via DOM APIs
-export const createIssueCard = (issue) => {
-  const ds = issue.deadlineStatus || calculateDeadlineStatus(issue.dueDate, issue.status);
+const buildCard = (issue, tpl) => {
+  const ds = liveStatus(issue, new Date());
   const cardClass = ds === 'OVERDUE' ? 'overdue' : ds === 'DUE_TODAY' ? 'due-today' : ds === 'COMPLETED' ? 'completed' : 'upcoming';
 
-  // Try template in current page
-  const tpl = document.getElementById('issueCardTemplate');
   if (tpl) {
     const clone = tpl.content.cloneNode(true);
     const card = clone.querySelector('.issue-card');
@@ -40,12 +37,25 @@ export const createIssueCard = (issue) => {
     if (issue.commentCount) { commentEl.textContent = `💬 ${issue.commentCount}`; } else { commentEl.textContent = ''; }
     clone.querySelector('.avatar-sm').textContent = initials(issue.assigneeName || 'Unassigned');
     clone.querySelector('.assignee-name').textContent = issue.assigneeName || 'Unassigned';
+
     const dueDateEl = clone.querySelector('.due-date');
     const dueLabelEl = clone.querySelector('.due-label');
-    dueLabelEl.textContent = 'Due';
-    const dueDisplay = ds === 'DUE_TODAY' ? 'Today' : formatDateShort(issue.dueDate);
-    const full = issue.dueDate ? (() => { const d = new Date(issue.dueDate); return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month:'short', day:'numeric'}); })() : '';
-    dueDateEl.textContent = full ? `${dueDisplay} • ${full}` : dueDisplay;
+    if (issue.dueDate) {
+      if (ds === 'OVERDUE') {
+        dueLabelEl.textContent = 'Overdue';
+        dueDateEl.textContent = `${formatDateTime(issue.dueDate)}`;
+      } else if (ds === 'DUE_TODAY') {
+        dueLabelEl.textContent = 'Due';
+        dueDateEl.textContent = dueDisplayText(issue, new Date());
+      } else {
+        dueLabelEl.textContent = 'Due';
+        dueDateEl.textContent = dueDisplayText(issue, new Date());
+      }
+    } else {
+      dueLabelEl.textContent = '';
+      dueDateEl.textContent = 'No due date';
+    }
+
     const badge = clone.querySelector('.deadline-badge');
     badge.textContent = `${getBadgeIcon(ds)} ${ds === 'COMPLETED' ? (issue.completionLabel ? issue.completionLabel.toUpperCase() : 'COMPLETED') : ds}`;
     badge.className = `deadline-badge deadline-${ds}`;
@@ -57,7 +67,6 @@ export const createIssueCard = (issue) => {
     } else {
       completedBox.style.display = 'none';
     }
-    // wrapper for DocumentFragment -> need to return card element
     const wrapper = document.createElement('div');
     wrapper.appendChild(clone);
     return wrapper.firstElementChild;
@@ -111,10 +120,17 @@ export const createIssueCard = (issue) => {
   dueSection.className = 'due-section';
   const dueLabel = document.createElement('div');
   dueLabel.className = 'due-label';
-  dueLabel.textContent = 'Due';
   const dueDate = document.createElement('div');
   dueDate.className = 'due-date';
-  dueDate.textContent = formatDateShort(issue.dueDate);
+  if (issue.dueDate) {
+    dueLabel.textContent = ds === 'OVERDUE' ? 'Overdue' : ds === 'DUE_TODAY' ? 'Due today' : 'Due';
+    dueDate.textContent = ds === 'OVERDUE' ? formatDateTime(issue.dueDate)
+      : ds === 'DUE_TODAY' ? `at ${formatTime(issue.dueDate)}`
+      : dueDisplayText(issue, new Date());
+  } else {
+    dueLabel.textContent = '';
+    dueDate.textContent = 'No due date';
+  }
   dueSection.append(dueLabel, dueDate);
   footer.append(assignee, dueSection);
 
@@ -126,12 +142,15 @@ export const createIssueCard = (issue) => {
   return card;
 };
 
+// Returns HTMLElement (no HTML strings) — clones template if available, else builds via DOM APIs
+export const createIssueCard = (issue) => {
+  const tpl = document.getElementById('issueCardTemplate');
+  return buildCard(issue, tpl);
+};
+
 // Backward compat for callers expecting string — now returns element; provide helper to append
 export const renderIssueCard = (issue) => {
   const el = createIssueCard(issue);
-  // if caller uses innerHTML insertion, they should append element. We return outerHTML as fallback string for minimal change, but prefer element.
-  // To keep no HTML strings, return element's outerHTML via DOM serializer? But we avoid string. Return element instead.
-  // For compat, if string needed, build via element.outerHTML without manual HTML.
   return el.outerHTML;
 };
 

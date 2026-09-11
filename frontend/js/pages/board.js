@@ -5,8 +5,10 @@ import { initTopnav } from '../components/navbar.js';
 import { createIssueCard } from '../components/issueCard.js';
 import { openModal, closeModal, bindModalClose } from '../components/modal.js';
 import { notify } from '../components/toast.js';
-import { formatDate, timeAgo, initials } from '../utils/formatters.js';
-import { calculateDeadlineStatus } from '../utils/deadline.js';
+import { formatDate, formatDateTime, formatTime, timeAgo, initials } from '../utils/formatters.js';
+import { calculateDeadlineStatus, deadlineSnapshot, toLocalISO, liveStatus } from '../utils/deadline.js';
+import { onClockTick } from '../utils/clock.js';
+import { createDateTimePicker } from '../components/dateTimePicker.js';
 
 const user = auth.requireAuth();
 initSidebar('board');
@@ -126,6 +128,30 @@ bindModalClose('issueModal');
 bindModalClose('detailModal');
 $('#createIssueBtn')?.addEventListener('click', () => prepareCreate());
 
+// ---------- Due Date & Time picker (create issue) ----------
+let duePicker = null;
+const initDuePicker = () => {
+  const host = document.getElementById('dueDateTimePicker');
+  if (!host) return;
+  if (duePicker) { duePicker.destroy(); duePicker = null; }
+  duePicker = createDateTimePicker({
+    container: host,
+    onChange: () => {
+      const de = document.getElementById('dueDateError');
+      const pe = document.getElementById('duePastError');
+      if (de) de.classList.add('hidden');
+      if (pe) pe.classList.add('hidden');
+      const titleInput = $('#issueTitle');
+      if (window.lucide) window.lucide.createIcons();
+    }
+  });
+};
+
+const clearDueErrors = () => {
+  document.getElementById('dueDateError')?.classList.add('hidden');
+  document.getElementById('duePastError')?.classList.add('hidden');
+};
+
 const init = async () => {
   try {
     allProjects = await api.get('/api/projects');
@@ -155,6 +181,8 @@ const init = async () => {
     const wf = await getWorkflowForProject(activeProjectId);
     renderBoardColumns(wf);
     await Promise.all([loadMembers(), loadIssues()]);
+    initDuePicker();
+    watchLiveOverdue();
     modalProjectSelect()?.addEventListener('change', async () => {
       await loadMembersForProject(Number(modalProjectSelect().value));
       // also update status dropdown for that project's workflow
@@ -312,11 +340,28 @@ const filteredIssues = () => {
     if (activeDeadlineFilter !== 'all') {
       if (activeDeadlineFilter === 'my' && String(i.assigneeId) !== String(user.id)) return false;
       else if (['OVERDUE','DUE_TODAY','UPCOMING','COMPLETED'].includes(activeDeadlineFilter)) {
-        const ds = i.deadlineStatus || calculateDeadlineStatus(i.dueDate, i.status);
+        const ds = liveStatus(i, new Date());
         if (ds !== activeDeadlineFilter) return false;
       }
     }
     return true;
+  });
+};
+
+let renderedDeadlineSnapshot = null;
+const captureSnapshot = () => { renderedDeadlineSnapshot = deadlineSnapshot(allIssues, new Date()); };
+
+// One centralized tick drives live overdue detection — re-render only when a boundary is crossed.
+const watchLiveOverdue = () => {
+  onClockTick(() => {
+    const next = deadlineSnapshot(allIssues, new Date());
+    let changed = !renderedDeadlineSnapshot || renderedDeadlineSnapshot.size !== next.size;
+    if (!changed) {
+      for (const [k, v] of next) {
+        if (renderedDeadlineSnapshot.get(k) !== v) { changed = true; break; }
+      }
+    }
+    if (changed) { renderedDeadlineSnapshot = next; renderBoard(); }
   });
 };
 
@@ -387,6 +432,7 @@ const renderBoard = () => {
     }
   });
   refreshIcons();
+  captureSnapshot();
 };
 
 const prepareCreate = async () => {
@@ -412,8 +458,11 @@ const prepareCreate = async () => {
       });
     }
   }
-  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
-  $('#issueDueDate').value = tomorrow.toISOString().slice(0,10);
+  const defaultDue = new Date(); defaultDue.setDate(defaultDue.getDate() + 1);
+  defaultDue.setHours(9, 0, 0, 0);
+  if (!duePicker) initDuePicker();
+  duePicker?.setValue(defaultDue);
+  clearDueErrors();
   $('#issueAssignee').value = '';
   const lbl = document.getElementById('issueLabels');
   if (lbl) lbl.value = '';
@@ -429,30 +478,33 @@ $('#issueForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   // Custom validation (no browser-native popup)
   const titleInput = $('#issueTitle');
-  const dueInput = $('#issueDueDate');
   const titleError = document.getElementById('titleError');
   const dueError = document.getElementById('dueDateError');
+  const duePastError = document.getElementById('duePastError');
   let valid = true;
   if (!titleInput.value.trim()) {
     titleInput.style.borderColor = '#EF4444';
-    if (titleError) titleError.style.display = 'flex';
+    if (titleError) titleError.classList.remove('hidden');
     valid = false;
   } else {
     titleInput.style.borderColor = '#E2E8F0';
-    if (titleError) titleError.style.display = 'none';
+    if (titleError) titleError.classList.add('hidden');
   }
-  if (!dueInput.value) {
-    dueInput.style.borderColor = '#EF4444';
-    if (dueError) dueError.style.display = 'flex';
+  const dueVal = duePicker ? duePicker.getValue() : null;
+  if (!dueVal) {
+    if (dueError) dueError.classList.remove('hidden');
     valid = false;
   } else {
-    dueInput.style.borderColor = '#E2E8F0';
-    if (dueError) dueError.style.display = 'none';
+    if (dueError) dueError.classList.add('hidden');
+    if (duePastError) duePastError.classList.add('hidden');
   }
   if (!valid) return;
+  if (dueVal <= new Date()) {
+    if (duePastError) duePastError.classList.remove('hidden');
+    return;
+  }
   // Clear errors on input
-  titleInput.addEventListener('input', () => { titleInput.style.borderColor='#E2E8F0'; if(titleError) titleError.style.display='none'; }, { once:true });
-  dueInput.addEventListener('input', () => { dueInput.style.borderColor='#E2E8F0'; if(dueError) dueError.style.display='none'; }, { once:true });
+  titleInput.addEventListener('input', () => { titleInput.style.borderColor='#E2E8F0'; if(titleError) titleError.classList.add('hidden'); }, { once:true });
 
   const btn = $('#issueSubmitBtn'); const orig = btn.innerHTML; btn.innerHTML='<i data-lucide="loader-2" style="width:16px;height:16px;animation:spin 1s linear infinite"></i> Creating...'; btn.disabled=true;
   if (window.lucide) window.lucide.createIcons();
@@ -469,7 +521,7 @@ $('#issueForm')?.addEventListener('submit', async (e) => {
       status: $('#issueStatus').value,
       assigneeId: $('#issueAssignee').value ? Number($('#issueAssignee').value) : null,
       reporterId: user.id,
-      dueDate: dueInput.value,
+      dueDate: toLocalISO(dueVal),
       labels: document.getElementById('issueLabels')?.value.trim() || null,
       storyPoints: document.getElementById('issuePoints')?.value ? Number(document.getElementById('issuePoints').value) : null,
       sprint: document.getElementById('issueSprint')?.value.trim() || null,
@@ -479,6 +531,9 @@ $('#issueForm')?.addEventListener('submit', async (e) => {
     notify.success(`Issue ${created.issueKey} created in ${created.projectKey}`);
     closeModal('issueModal');
     e.target.reset();
+    const defD = new Date(); defD.setDate(defD.getDate() + 1); defD.setHours(9,0,0,0);
+    duePicker?.setValue(defD);
+    clearDueErrors();
     if (String(selectedProjectId) !== String(activeProjectId)) {
       activeProjectId = String(selectedProjectId);
       localStorage.setItem('activeProjectId', activeProjectId);
@@ -504,7 +559,7 @@ const openDetail = async (issueId) => {
     descEl.textContent = issue.description || 'No description provided.';
     descEl.style.cssText = 'font-size:14px;color:#334155;line-height:1.6;background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:10px;min-height:60px';
 
-    const ds = issue.deadlineStatus || calculateDeadlineStatus(issue.dueDate, issue.status);
+    const ds = liveStatus(issue, new Date());
     const badges = $('#detailBadges');
     badges.textContent = '';
     const mkBadge = (text, cls) => {
@@ -556,9 +611,9 @@ const openDetail = async (issueId) => {
     if (issue.sprint) addField('Sprint', issue.sprint);
     {
       const wrap = document.createElement('div'); wrap.className='detail-field';
-      const lbl = document.createElement('span'); lbl.className='detail-label'; lbl.textContent='Due Date';
+      const lbl = document.createElement('span'); lbl.className='detail-label'; lbl.textContent='Due Date & Time';
       const valWrap = document.createElement('div'); valWrap.style.display='flex'; valWrap.style.alignItems='center'; valWrap.style.gap='6px';
-      const val = document.createElement('span'); val.className='detail-value'; val.textContent=formatDate(issue.dueDate);
+      const val = document.createElement('span'); val.className='detail-value'; val.textContent=formatDateTime(issue.dueDate);
       const badge = document.createElement('span'); badge.className=`deadline-badge deadline-${ds}`; badge.textContent=ds;
       valWrap.append(val,badge); wrap.append(lbl,valWrap); sidebar.appendChild(wrap);
     }
@@ -574,7 +629,7 @@ const openDetail = async (issueId) => {
     addField('Updated', timeAgo(issue.updatedAt));
     if (ds==='OVERDUE') {
       const warn = document.createElement('div');
-      warn.textContent = `Overdue — Due ${formatDate(issue.dueDate)}`;
+      warn.textContent = `Overdue — Due ${formatDateTime(issue.dueDate)}`;
       warn.style.cssText='background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:8px;border-radius:8px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px';
       const icon = document.createElement('i'); icon.setAttribute('data-lucide','alert-triangle'); icon.style.width='14px'; icon.style.height='14px';
       warn.prepend(icon);
@@ -582,7 +637,7 @@ const openDetail = async (issueId) => {
     }
     if (ds==='DUE_TODAY') {
       const warn = document.createElement('div');
-      warn.textContent = 'Due today';
+      warn.textContent = `Due today at ${formatTime(issue.dueDate)}`;
       warn.style.cssText='background:#fffbeb;border:1px solid #fde68a;color:#b45309;padding:8px;border-radius:8px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px';
       const icon = document.createElement('i'); icon.setAttribute('data-lucide','clock-3'); icon.style.width='14px'; icon.style.height='14px';
       warn.prepend(icon);

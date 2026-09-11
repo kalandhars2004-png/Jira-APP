@@ -675,3 +675,73 @@ input, select, textarea { font-family: inherit; }
 /* SELECT2? */
 .member-list { display: flex; flex-direction: column; gap: 8px; }
 .member-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: white; }
+
+
+/* ============================================================
+   DateTimePicker — reusable date+time scheduling component
+   ============================================================ */
+.dtp { position: relative; }
+.dtp-fields { display: flex; gap: 8px; align-items: stretch; }
+.dtp-trigger { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:9px 12px; cursor:pointer; color:#0f172a; font-weight:500; font-size:13px; transition: border-color .14s, box-shadow .14s; text-align:left; }
+.dtp-trigger:hover { border-color:#cbd5e1; background:#f8fafc; }
+.dtp-trigger:focus-visible { outline:none; border-color:#4f46e5; box-shadow:0 0 0 3px #eef2ff; }
+.dtp-trigger .lucide { color:#64748b; flex-shrink:0; }
+.dtp-trigger.has-value .lucide { color:#4f46e5; }
+.dtp-trigger .dtp-chevron { margin-left:auto; display:flex; }
+.dtp-date-text, .dtp-time-text { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#94a3b8; }
+.dtp-trigger.has-value .dtp-date-text,
+.dtp-trigger.has-value .dtp-time-text { color:#0f172a; font-weight:600; }
+
+.dtp-hint { margin-top:6px; font-size:12px; font-weight:600; min-height:14px; }
+.dtp-hint-future { color:#059669; }
+.dtp-hint-overdue { color:#dc2626; }
+
+.dtp-popover { position:fixed; z-index:60; background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 12px 32px rgba(15,23,42,.14), 0 2px 8px rgba(15,23,42,.06); width:320px; display:none; }
+.dtp-popover.open { display:block; }
+
+.dtp-cal-head { display:flex; align-items:center; justify-content:space-between; padding:10px 12px 6px; }
+.dtp-month-label { font-size:14px; font-weight:700; color:#0f172a; }
+.dtp-nav { display:grid; place-items:center; width:30px; height:30px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; color:#64748b; cursor:pointer; }
+.dtp-nav:hover { background:#f8fafc; color:#0f172a; }
+.dtp-weekdays { display:grid; grid-template-columns:repeat(7,1fr); padding:6px 10px 0; }
+.dtp-wd { text-align:center; font-size:11px; font-weight:700; letter-spacing:.03em; color:#94a3b8; padding:4px 0; }
+
+.dtp-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; padding:6px 10px 10px; }
+.dtp-day { min-height:34px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:500; color:#0f172a; background:transparent; border:none; border-radius:8px; cursor:pointer; transition:background .12s, color .12s; }
+.dtp-day:hover:not(.dtp-day-disabled) { background:#eef2ff; color:#4f46e5; }
+.dtp-day-out { color:#cbd5e1; }
+.dtp-day-disabled { color:#e2e8f0; cursor:not-allowed; }
+.dtp-day-today { box-shadow: inset 0 0 0 1px #4f46e5; color:#4f46e5; font-weight:700; }
+.dtp-day-selected { background:#4f46e5 !important; color:#fff !important; font-weight:700; box-shadow:none; }
+.dtp-day-focus { background:#eef2ff; color:#4f46e5; }
+
+.dtp-quick { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:0 10px 10px; border-bottom:1px solid #f1f5f9; }
+.dtp-quick-btn { padding:7px 4px; font-size:12px; font-weight:600; color:#4f46e5; background:#eef2ff; border:1px solid #e0e7ff; border-radius:8px; cursor:pointer; }
+.dtp-quick-btn:hover { background:#e0e7ff; }
+
+.dtp-cal-foot { display:flex; align-items:center; gap:8px; padding:10px; }
+.dtp-foot-spacer { flex:1; }
+.dtp-foot-btn { padding:7px 12px; font-size:12px; font-weight:700; border:1px solid #e2e8f0; border-radius:8px; background:#fff; color:#0f172a; cursor:pointer; }
+.dtp-foot-btn:hover { background:#f8fafc; }
+.dtp-foot-btn-danger { color:#dc2626; border-color:#fecaca; }
+.dtp-foot-btn-danger:hover { background:#fef2f2; }
+
+.dtp-timepop { width:280px; }
+.dtp-time-head { padding:12px 12px 6px; font-size:13px; font-weight:700; color:#0f172a; }
+.dtp-time-search { padding:6px 12px; }
+.dtp-time-input { width:100%; box-sizing:border-box; padding:8px 10px; font-size:13px; border:1px solid #e2e8f0; border-radius:8px; outline:none; }
+.dtp-time-input:focus { border-color:#4f46e5; box-shadow:0 0 0 3px #eef2ff; }
+.dtp-time-list { max-height:256px; overflow:auto; padding:4px 6px 8px; display:grid; grid-template-columns:repeat(2,1fr); gap:4px; }
+.dtp-time-slot { padding:8px 4px; text-align:center; font-size:13px; font-weight:600; color:#0f172a; background:#fff; border:1px solid #e2e8f0; border-radius:8px; cursor:pointer; }
+.dtp-time-slot:hover:not(.dtp-time-disabled) { border-color:#4f46e5; color:#4f46e5; background:#eef2ff; }
+.dtp-time-disabled { color:#e2e8f0; cursor:not-allowed; border-color:#f1f5f9; background:#fafbfc; }
+.dtp-time-selected { background:#4f46e5 !important; border-color:#4f46e5 !important; color:#fff !important; }
+.dtp-time-focus { border-color:#4f46e5; box-shadow:0 0 0 3px #eef2ff; }
+.dtp-time-empty { grid-column:1/-1; text-align:center; color:#94a3b8; font-size:12px; padding:16px; }
+.dtp-time-note { padding:0 12px 10px; font-size:11px; color:#94a3b8; min-height:14px; }
+
+@media (max-width: 640px) {
+  .dtp-fields { flex-direction: column; }
+  .dtp-popover { max-width: calc(100vw - 16px); }
+  .dtp-time-list { grid-template-columns:repeat(2,1fr); }
+}

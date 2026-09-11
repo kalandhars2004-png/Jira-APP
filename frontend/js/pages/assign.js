@@ -5,8 +5,10 @@ import { initTopnav } from '../components/navbar.js';
 import { createIssueCard } from '../components/issueCard.js';
 import { openModal, closeModal, bindModalClose } from '../components/modal.js';
 import { notify } from '../components/toast.js';
-import { formatDate, initials, timeAgo } from '../utils/formatters.js';
-import { calculateDeadlineStatus } from '../utils/deadline.js';
+import { formatDate, formatDateTime, initials, timeAgo } from '../utils/formatters.js';
+import { liveStatus, deadlineSnapshot, toLocalISO } from '../utils/deadline.js';
+import { onClockTick } from '../utils/clock.js';
+import { createDateTimePicker } from '../components/dateTimePicker.js';
 
 const user = auth.requireAuth();
 initSidebar('assign');
@@ -29,19 +31,42 @@ let dragged = null;
 bindModalClose('unassignedModal');
 bindModalClose('userDetailModal');
 
+let uaDuePicker = null;
+const initUaDuePicker = () => {
+  const host = document.getElementById('uaDuePicker');
+  if (!host || uaDuePicker) return;
+  uaDuePicker = createDateTimePicker({ container: host, onChange: () => {
+    document.getElementById('uaDueError')?.classList.add('hidden');
+    document.getElementById('uaDueError').style.display='none';
+    document.getElementById('uaPastError')?.classList.add('hidden');
+    document.getElementById('uaPastError').style.display='none';
+  }});
+};
+
 $('#createUnassignedBtn')?.addEventListener('click', () => {
   if (!activeProjectId) { notify.error('Select a project first'); return; }
-  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
-  $('#uaDueDate').value = tomorrow.toISOString().slice(0,10);
+  if (!uaDuePicker) initUaDuePicker();
+  const def = new Date(); def.setDate(def.getDate()+1); def.setHours(9,0,0,0);
+  uaDuePicker?.setValue(def);
+  document.getElementById('uaDueError')?.classList.add('hidden');
+  document.getElementById('uaPastError')?.classList.add('hidden');
+  const ue = document.getElementById('uaDueError'); if(ue) ue.style.display='none';
+  const pe = document.getElementById('uaPastError'); if(pe) pe.style.display='none';
   $('#uaTitle').value = '';
   $('#uaDesc').value = '';
   openModal('unassignedModal');
+  if (window.lucide) window.lucide.createIcons();
 });
 
 $('#unassignedForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = $('#uaSubmitBtn'); const orig = btn.textContent; btn.textContent='Creating...'; btn.disabled=true;
   try {
+    const dueVal = uaDuePicker ? uaDuePicker.getValue() : null;
+    const ue = document.getElementById('uaDueError');
+    const pe = document.getElementById('uaPastError');
+    if (!dueVal) { if(ue){ ue.classList.remove('hidden'); ue.style.display='block'; } throw new Error('Please select a due date and time'); }
+    if (dueVal <= new Date()) { if(pe){ pe.classList.remove('hidden'); pe.style.display='block'; } throw new Error('Due date and time must be in the future'); }
     const payload = {
       projectId: Number(activeProjectId),
       title: $('#uaTitle').value.trim(),
@@ -51,13 +76,14 @@ $('#unassignedForm')?.addEventListener('submit', async (e) => {
       status: 'TODO',
       assigneeId: null,
       reporterId: user.id,
-      dueDate: $('#uaDueDate').value
+      dueDate: toLocalISO(dueVal)
     };
     if (!payload.title) throw new Error('Title required');
-    if (!payload.dueDate) throw new Error('Due date required');
     await api.post('/api/issues', payload);
     notify.success('Unassigned issue created — drag to assign');
     closeModal('unassignedModal');
+    const nd = new Date(); nd.setDate(nd.getDate()+1); nd.setHours(9,0,0,0);
+    uaDuePicker?.setValue(nd);
     await loadIssues();
   } catch (err) { notify.error(err.message); }
   finally { btn.textContent=orig; btn.disabled=false; }
@@ -112,7 +138,7 @@ const filteredIssues = () => {
     if (q && !(i.title.toLowerCase().includes(q) || i.issueKey.toLowerCase().includes(q) || (i.description||'').toLowerCase().includes(q))) return false;
     if (pri && i.priority !== pri) return false;
     if (dl) {
-      const ds = i.deadlineStatus || calculateDeadlineStatus(i.dueDate, i.status);
+      const ds = liveStatus(i, new Date());
       if (ds !== dl) return false;
     }
     return true;
@@ -123,8 +149,8 @@ const renderTopStats = () => {
   const filtered = filteredIssues();
   const total = filtered.length;
   const unassigned = filtered.filter(i => !i.assigneeId).length;
-  const overdue = filtered.filter(i => (i.deadlineStatus||calculateDeadlineStatus(i.dueDate,i.status))==='OVERDUE').length;
-  const dueToday = filtered.filter(i => (i.deadlineStatus||calculateDeadlineStatus(i.dueDate,i.status))==='DUE_TODAY').length;
+  const overdue = filtered.filter(i => liveStatus(i, new Date())==='OVERDUE').length;
+  const dueToday = filtered.filter(i => liveStatus(i, new Date())==='DUE_TODAY').length;
   assignStats.textContent = '';
   [
     { label: `Total ${total}`, bg:'#f1f5f9' },
@@ -147,8 +173,8 @@ const getMemberStats = (memberId) => {
   const inprog = issues.filter(i=>i.status==='IN_PROGRESS').length;
   const inrev = issues.filter(i=>i.status==='IN_REVIEW').length;
   const done = issues.filter(i=>i.status==='DONE').length;
-  const overdue = issues.filter(i=> (i.deadlineStatus||calculateDeadlineStatus(i.dueDate,i.status))==='OVERDUE').length;
-  const dueToday = issues.filter(i=> (i.deadlineStatus||calculateDeadlineStatus(i.dueDate,i.status))==='DUE_TODAY').length;
+  const overdue = issues.filter(i=> liveStatus(i, new Date())==='OVERDUE').length;
+  const dueToday = issues.filter(i=> liveStatus(i, new Date())==='DUE_TODAY').length;
   return { total, todo, inprog, inrev, done, overdue, dueToday, issues };
 };
 
@@ -176,6 +202,7 @@ const renderBoard = () => {
   }
 
   bindDragForBoard();
+  captureAssignSnap();
 };
 
 const createMemberColumn = (member, issues) => {
@@ -211,7 +238,7 @@ const createMemberColumn = (member, issues) => {
   }
 
   // stats + workload indicator
-  const stats = member ? getMemberStats(member.userId) : { total: issues.length, todo: issues.filter(i=>i.status==='TODO').length, inprog: issues.filter(i=>i.status==='IN_PROGRESS').length, done: issues.filter(i=>i.status==='DONE').length, overdue: issues.filter(i=> (i.deadlineStatus||calculateDeadlineStatus(i.dueDate,i.status))==='OVERDUE').length };
+  const stats = member ? getMemberStats(member.userId) : { total: issues.length, todo: issues.filter(i=>i.status==='TODO').length, inprog: issues.filter(i=>i.status==='IN_PROGRESS').length, done: issues.filter(i=>i.status==='DONE').length, overdue: issues.filter(i=> liveStatus(i, new Date())==='OVERDUE').length };
   const statTpl = document.getElementById('memberStatTemplate');
   const statsToShow = member ? [
     { val: stats.total, label: 'Total' },
@@ -220,7 +247,7 @@ const createMemberColumn = (member, issues) => {
     { val: stats.done, label: 'Done' },
   ] : [
     { val: issues.length, label: 'Total' },
-    { val: issues.filter(i=> (i.deadlineStatus||calculateDeadlineStatus(i.dueDate,i.status))==='OVERDUE').length, label: 'Overdue' },
+    { val: issues.filter(i=> liveStatus(i, new Date())==='OVERDUE').length, label: 'Overdue' },
   ];
   statsToShow.forEach(({val,label}) => {
     const sClone = statTpl.content.cloneNode(true);
@@ -510,7 +537,7 @@ const openUserDetail = (member) => {
       title.textContent=issue.title;
       title.style.flex='1'; title.style.fontSize='13px'; title.style.fontWeight='600'; title.style.whiteSpace='nowrap'; title.style.overflow='hidden'; title.style.textOverflow='ellipsis';
       const badge = document.createElement('span');
-      const ds = issue.deadlineStatus || calculateDeadlineStatus(issue.dueDate, issue.status);
+      const ds = liveStatus(issue, new Date());
       badge.textContent=ds;
       badge.className=`deadline-badge deadline-${ds}`;
       badge.style.fontSize='10px';
@@ -529,4 +556,18 @@ const openUserDetail = (member) => {
   openModal('userDetailModal');
 };
 
-init();
+let assignSnap = null;
+const captureAssignSnap = () => { assignSnap = deadlineSnapshot(allIssues, new Date()); };
+const watchAssign = () => {
+  onClockTick(() => {
+    const next = deadlineSnapshot(allIssues, new Date());
+    let changed = !assignSnap || assignSnap.size !== next.size;
+    if (!changed) { for (const [k,v] of next) { if (assignSnap.get(k) !== v) { changed = true; break; } } }
+    if (changed) { assignSnap = next; renderBoard(); }
+  });
+};
+
+init().then(() => {
+  initUaDuePicker();
+  watchAssign();
+});

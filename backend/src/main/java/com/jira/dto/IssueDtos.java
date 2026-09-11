@@ -24,8 +24,8 @@ public class IssueDtos {
         private String status; // Generic — can be any workflow stage
         private Long assigneeId;
         private Long reporterId;
-        @NotNull(message = "Due date is required")
-        private LocalDate dueDate;
+        @NotNull(message = "Due date and time is required")
+        private LocalDateTime dueDate;
         // Generic fields — can be anything
         private String labels;
         private Integer storyPoints;
@@ -42,7 +42,7 @@ public class IssueDtos {
         private Priority priority;
         private String status;
         private Long assigneeId;
-        private LocalDate dueDate;
+        private LocalDateTime dueDate;
         private String labels;
         private Integer storyPoints;
         private String sprint;
@@ -66,7 +66,7 @@ public class IssueDtos {
         private String reporterName;
         private String projectKey;
         private String projectName;
-        private LocalDate dueDate;
+        private LocalDateTime dueDate;
         private LocalDate completedDate;
         private DeadlineStatus deadlineStatus;
         private String completionLabel; // "Completed on time" / "Completed late" / null
@@ -74,6 +74,10 @@ public class IssueDtos {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private long commentCount;
+        // Review transition
+        private Long movedToReviewBy;
+        private String movedToReviewByName;
+        private LocalDateTime movedToReviewAt;
         // Generic fields
         private String labels;
         private Integer storyPoints;

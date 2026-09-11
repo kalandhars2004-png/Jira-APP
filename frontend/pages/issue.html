@@ -245,12 +245,13 @@
                 <button class="btn btn-ghost btn-sm" id="sprintSaveBtn">Save</button>
                 <button class="btn btn-ghost btn-sm" id="sprintRemoveBtn">Remove</button>
               </div>
-              <div class="detail-row"><span class="detail-label">Due Date</span><span class="detail-value" id="dueDateValue">—</span></div>
-              <div style="display:flex; gap:6px; margin-top:6px">
-                <input id="dueDateInput" type="date" class="form-input" style="flex:1; padding:6px 8px; font-size:12px" />
-                <button class="btn btn-ghost btn-sm" id="dueDateSaveBtn">Save</button>
+              <div class="detail-row"><span class="detail-label">Due Date & Time</span><span class="detail-value" id="dueDateValue">—</span></div>
+              <div id="duePickerHost" style="margin-top:8px"></div>
+              <div style="display:flex; gap:6px; margin-top:8px">
+                <button class="btn btn-primary btn-sm" id="dueDateSaveBtn">Save due date</button>
                 <button class="btn btn-ghost btn-sm" id="dueDateRemoveBtn">Remove</button>
               </div>
+              <div id="dueEditError" class="hidden" style="color:#ef4444; font-size:12px; margin-top:6px;"></div>
               <div class="detail-row"><span class="detail-label">Project</span><span class="detail-value" id="projectValue">—</span></div>
               <div class="detail-row"><span class="detail-label">Created</span><span class="detail-value" id="createdValue">—</span></div>
               <div class="detail-row"><span class="detail-label">Updated</span><span class="detail-value" id="updatedValue">—</span></div>

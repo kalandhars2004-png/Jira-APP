@@ -48,11 +48,16 @@ public class Issue {
     // For subtasks — parent issue id
     private Long parentId;
 
-    // DUE DATE SYSTEM
+    // DUE DATE & TIME SYSTEM — one actual datetime value (user local wall-clock)
+    // Stored as DATETIME. Existing DATE rows auto-convert to midnight on migration.
     @Column(nullable = false)
-    private LocalDate dueDate;
+    private LocalDateTime dueDate;
 
     private LocalDate completedDate;
+
+    // REVIEW TRANSITION — who moved this issue to REVIEW and when
+    private Long movedToReviewBy;
+    private LocalDateTime movedToReviewAt;
 
     // GENERIC JIRA FIELDS — can be anything (refer Jira)
     @Column(length = 500)

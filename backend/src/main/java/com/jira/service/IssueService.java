@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,7 +37,10 @@ public class IssueService {
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
 
         if (req.getDueDate() == null) {
-            throw new IllegalArgumentException("Due date is required - Every issue must have a due date");
+            throw new IllegalArgumentException("Due date and time is required - Every issue must have a due date and time");
+        }
+        if (req.getDueDate().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Due date and time must be in the future");
         }
 
         if (req.getAssigneeId() != null && !memberRepo.existsByProjectIdAndUserId(req.getProjectId(), req.getAssigneeId())) {
@@ -78,6 +82,10 @@ public class IssueService {
 
         if (isDoneStatus(issue.getStatus(), wf)) {
             issue.setCompletedDate(LocalDate.now());
+        }
+        if (isReviewStatus(issue.getStatus())) {
+            issue.setMovedToReviewBy(req.getReporterId());
+            issue.setMovedToReviewAt(LocalDateTime.now());
         }
 
         issue = issueRepo.save(issue);
@@ -242,6 +250,13 @@ public class IssueService {
         activityService.log(issue.getId(), issue.getProjectId(), userId,
                 "STATUS_CHANGED", actor + " moved " + issue.getIssueKey() + " from " + old + " to " + newStatus);
         issue.setStatus(newStatus);
+        // Track review transition — preserve who moved it to REVIEW and when
+        if (isReviewStatus(newStatus)) {
+            issue.setMovedToReviewBy(userId);
+            issue.setMovedToReviewAt(LocalDateTime.now());
+            activityService.log(issue.getId(), issue.getProjectId(), userId,
+                    "MOVED_TO_REVIEW", actor + " moved " + issue.getIssueKey() + " to review");
+        }
         if (isDoneStatus(newStatus, workflow)) {
             issue.setCompletedDate(LocalDate.now());
             boolean onTime = DeadlineCalculator.isCompletedOnTime(issue.getDueDate(), issue.getCompletedDate());
@@ -252,6 +267,12 @@ public class IssueService {
         } else {
             issue.setCompletedDate(null);
         }
+    }
+
+    private boolean isReviewStatus(String status) {
+        if (status == null) return false;
+        String s = status.toUpperCase();
+        return s.equals("REVIEW") || s.equals("IN_REVIEW") || s.contains("REVIEW");
     }
 
     private boolean isDoneStatus(String status, List<String> workflow) {
@@ -382,6 +403,15 @@ public class IssueService {
         return issueRepo.findByAssigneeId(userId).stream().map(this::toResponse).collect(Collectors.toList());
     }
 
+    public List<IssueResponse> getReviewIssuesForCreator(Long creatorId, Long projectId) {
+        List<Issue> all = issueRepo.findByReporterId(creatorId);
+        return all.stream()
+                .filter(i -> isReviewStatus(i.getStatus()))
+                .filter(i -> projectId == null || projectId.equals(i.getProjectId()))
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
     public List<IssueResponse> getSubtasks(Long parentId) {
         return issueRepo.findByParentId(parentId).stream().map(this::toResponse).collect(Collectors.toList());
     }
@@ -434,6 +464,10 @@ public class IssueService {
         if (issue.getReporterId() != null) {
             reporterName = userRepo.findById(issue.getReporterId()).map(User::getName).orElse(null);
         }
+        String movedToReviewByName = null;
+        if (issue.getMovedToReviewBy() != null) {
+            movedToReviewByName = userRepo.findById(issue.getMovedToReviewBy()).map(User::getName).orElse(null);
+        }
         String projectKey = null, projectName = null;
         if (project != null) { projectKey = project.getKey(); projectName = project.getName(); }
         long commentCount = commentRepo.countByIssueId(issue.getId());
@@ -470,6 +504,9 @@ public class IssueService {
                 .createdAt(issue.getCreatedAt())
                 .updatedAt(issue.getUpdatedAt())
                 .commentCount(commentCount)
+                .movedToReviewBy(issue.getMovedToReviewBy())
+                .movedToReviewByName(movedToReviewByName)
+                .movedToReviewAt(issue.getMovedToReviewAt())
                 .labels(issue.getLabels())
                 .storyPoints(issue.getStoryPoints())
                 .sprint(issue.getSprint())

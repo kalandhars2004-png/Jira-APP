@@ -3,8 +3,10 @@ import { api } from '../core/api.js';
 import { initSidebar } from '../components/sidebar.js';
 import { initTopnav } from '../components/navbar.js';
 import { notify } from '../components/toast.js';
-import { formatDate, formatDateShort, initials, timeAgo } from '../utils/formatters.js';
-import { calculateDeadlineStatus } from '../utils/deadline.js';
+import { formatDate, formatDateShort, formatDateTime, formatTime, initials, timeAgo } from '../utils/formatters.js';
+import { liveStatus, toLocalISO } from '../utils/deadline.js';
+import { createDateTimePicker } from '../components/dateTimePicker.js';
+import { onClockTick } from '../utils/clock.js';
 
 const user = auth.requireAuth();
 initSidebar('board');
@@ -21,6 +23,7 @@ let currentIssue = null;
 let currentProject = null;
 let workflow = [];
 let canEdit = false;
+let duePicker = null;
 
 const refreshIcons = () => { if (window.lucide) window.lucide.createIcons(); };
 
@@ -173,20 +176,34 @@ const renderIssue = (issue) => {
   // sprint
   $('#sprintValue').textContent = issue.sprint || '—';
   $('#sprintInput').value = issue.sprint || '';
-  // due date
+  // due date & time
   const dueEl = $('#dueDateValue');
-  const ds = issue.deadlineStatus || calculateDeadlineStatus(issue.dueDate, issue.status);
-  let dueText = issue.dueDate ? formatDate(issue.dueDate) : '—';
+  const ds = liveStatus(issue, new Date());
+  let dueText = issue.dueDate ? formatDateTime(issue.dueDate) : '—';
   if (issue.dueDate) {
     if (ds === 'OVERDUE') dueText += ' • Overdue';
-    else if (ds === 'DUE_TODAY') dueText += ' • Due today';
+    else if (ds === 'DUE_TODAY') dueText += ` • Due today at ${formatTime(issue.dueDate)}`;
     else if (ds === 'COMPLETED' && issue.completionLabel) dueText += ` • ${issue.completionLabel}`;
   }
   dueEl.textContent = dueText;
   dueEl.className = 'detail-value';
   if (ds === 'OVERDUE') dueEl.classList.add('due-overdue');
   else if (ds === 'DUE_TODAY') dueEl.classList.add('due-soon');
-  $('#dueDateInput').value = issue.dueDate || '';
+  // init / sync picker
+  const host = document.getElementById('duePickerHost');
+  if (host) {
+    if (!duePicker) {
+      duePicker = createDateTimePicker({ container: host, value: issue.dueDate || null });
+      if (!canEdit) {
+        const btns = host.querySelectorAll('button');
+        btns.forEach(b => b.disabled = true);
+      }
+    } else {
+      duePicker.setValue(issue.dueDate || null);
+    }
+    if (canEdit) host.style.opacity = '1'; else host.style.opacity = '0.7';
+    host.style.pointerEvents = canEdit ? 'auto' : 'none';
+  }
 
   // topnav title
   const topTitle = document.getElementById('topnavTitle');
@@ -377,12 +394,15 @@ $('#sprintRemoveBtn').addEventListener('click', async () => {
   try { await api.put(`/api/issues/${currentIssue.id}`, { sprint: null }, { params: { userId: user.id } }); $('#sprintInput').value=''; await loadIssue(); } catch (e) { notify.error(e.message); }
 });
 
-// Due date
+// Due date & time
 $('#dueDateSaveBtn').addEventListener('click', async () => {
   if (!canEdit) return;
-  const val = $('#dueDateInput').value;
-  if (!val) return notify.error('Select a date');
-  try { await api.put(`/api/issues/${currentIssue.id}`, { dueDate: val }, { params: { userId: user.id } }); notify.success('Due date updated'); await loadIssue(); } catch (e) { notify.error(e.message); }
+  const val = duePicker ? duePicker.getValue() : null;
+  const err = document.getElementById('dueEditError');
+  if (err) { err.classList.add('hidden'); err.textContent=''; }
+  if (!val) { if(err){err.textContent='⚠ Please select a due date and time'; err.classList.remove('hidden');} return; }
+  if (val <= new Date()) { if(err){err.textContent='⚠ Due date and time must be in the future'; err.classList.remove('hidden');} return; }
+  try { await api.put(`/api/issues/${currentIssue.id}`, { dueDate: toLocalISO(val) }, { params: { userId: user.id } }); notify.success('Due date updated'); await loadIssue(); } catch (e) { notify.error(e.message); }
 });
 $('#dueDateRemoveBtn').addEventListener('click', async () => {
   // Allow removing due date? But spec says due date required, so we just notify
@@ -774,6 +794,23 @@ moreBtn?.addEventListener('click', (e) => {
   refreshIcons();
 });
 document.addEventListener('click', () => { if (moreMenu) moreMenu.style.display='none'; });
+
+// Live overdue — refresh due display every 30s / on tab active
+onClockTick(() => {
+  if (!currentIssue) return;
+  const ds = liveStatus(currentIssue, new Date());
+  const dueEl = document.getElementById('dueDateValue');
+  if (dueEl && currentIssue.dueDate) {
+    let t = formatDateTime(currentIssue.dueDate);
+    if (ds === 'OVERDUE') t += ' • Overdue';
+    else if (ds === 'DUE_TODAY') t += ` • Due today at ${formatTime(currentIssue.dueDate)}`;
+    else if (ds === 'COMPLETED' && currentIssue.completionLabel) t += ` • ${currentIssue.completionLabel}`;
+    dueEl.textContent = t;
+    dueEl.className = 'detail-value';
+    if (ds === 'OVERDUE') dueEl.classList.add('due-overdue');
+    else if (ds === 'DUE_TODAY') dueEl.classList.add('due-soon');
+  }
+});
 
 // Close button
 $('#closeIssueBtn').addEventListener('click', () => history.back());

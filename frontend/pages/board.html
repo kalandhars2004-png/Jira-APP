@@ -60,6 +60,9 @@
     .empty-icon { width:36px; height:36px; border-radius:8px; background:#F8FAFC; display:grid; place-items:center; margin:0 auto 8px; color:#94A3B8; }
     .empty-title { font-size:13px; font-weight:600; color:#334155; }
     .empty-desc { font-size:12px; color:#94A3B8; margin-top:2px; }
+    #dueDateError, #duePastError, #titleError { display:none; color:#EF4444; font-size:12px; margin-top:4px; align-items:center; gap:4px; }
+    #dueDateError:not(.hidden), #duePastError:not(.hidden), #titleError:not(.hidden) { display:flex; color:#EF4444; }
+    #dueDateError, #duePastError, #titleError { border:1px solid #fecaca; background:#fef2f2; padding:6px 10px; border-radius:8px; }
   </style>
 </head>
 <body>
@@ -190,19 +193,18 @@
           <div class="form-group"><label class="form-label">Priority</label><select class="form-select" id="issuePriority"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></div>
         </div>
         <div class="form-group"><label class="form-label">Title <span class="required">*</span></label><input class="form-input" id="issueTitle" placeholder="Enter a clear issue title..." required style="font-size:15px; font-weight:500" />
-          <div id="titleError" style="display:none; color:#EF4444; font-size:12px; margin-top:4px; display:flex; align-items:center; gap:4px"><i data-lucide="alert-circle" style="width:12px;height:12px"></i> Issue title is required</div>
+          <div id="titleError" class="hidden" style="color:#EF4444; font-size:12px; margin-top:4px; border:1px solid #fecaca; background:#fef2f2; padding:6px 10px; border-radius:8px; display:flex; align-items:center; gap:4px"><i data-lucide="alert-circle" style="width:12px;height:12px"></i> Issue title is required</div>
         </div>
         <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="issueDesc" placeholder="Describe the issue... (supports any content)"></textarea></div>
         <div class="form-row">
           <div class="form-group"><label class="form-label">Assignee</label><select class="form-select" id="issueAssignee"><option value="">Unassigned</option></select></div>
           <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="issueStatus"></select></div>
         </div>
-        <div class="form-group" style="max-width:50%"><label class="form-label">Due Date <span class="required">*</span></label>
-          <div style="position:relative">
-            <i data-lucide="calendar" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:#94a3b8; pointer-events:none"></i>
-            <input class="form-input" id="issueDueDate" type="date" required style="padding-left:36px" />
-          </div>
-          <div id="dueDateError" style="display:none; color:#EF4444; font-size:12px; margin-top:4px; display:flex; align-items:center; gap:4px"><i data-lucide="alert-circle" style="width:12px;height:12px"></i> Please select a due date</div>
+        <div class="form-group">
+          <label class="form-label">Due Date &amp; Time <span class="required">*</span></label>
+          <div id="dueDateTimePicker"></div>
+          <div id="dueDateError" class="hidden"><i data-lucide="alert-circle" style="width:12px;height:12px"></i> Please select a due date and time</div>
+          <div id="duePastError" class="hidden"><i data-lucide="alert-triangle" style="width:12px;height:12px"></i> Due date and time must be in the future</div>
         </div>
         <div class="form-group">
           <label class="form-label">Labels <span style="font-weight:400;color:#64748B">(optional)</span></label>

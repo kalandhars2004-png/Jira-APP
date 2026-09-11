@@ -4,8 +4,9 @@ import { initSidebar } from '../components/sidebar.js';
 import { initTopnav } from '../components/navbar.js';
 import { createIssueCard } from '../components/issueCard.js';
 import { notify } from '../components/toast.js';
-import { calculateDeadlineStatus } from '../utils/deadline.js';
-import { formatDate, formatDateShort } from '../utils/formatters.js';
+import { liveStatus, deadlineSnapshot, dueDisplayText } from '../utils/deadline.js';
+import { formatDate, formatDateShort, formatDateTime, formatTime } from '../utils/formatters.js';
+import { onClockTick } from '../utils/clock.js';
 
 const user = auth.requireAuth();
 initSidebar('mytasks');
@@ -128,8 +129,9 @@ const render = () => {
   filtered = getSorted(filtered);
 
   const groups = { OVERDUE: [], DUE_TODAY: [], UPCOMING: [], COMPLETED: [] };
+  const now = new Date();
   filtered.forEach((i) => {
-    const ds = i.deadlineStatus || calculateDeadlineStatus(i.dueDate, i.status);
+    const ds = liveStatus(i, now);
     if (groups[ds]) groups[ds].push(i); else groups.UPCOMING.push(i);
   });
 
@@ -168,15 +170,15 @@ const render = () => {
         const clone = tpl.content.cloneNode(true);
         clone.querySelector('.issue-key').textContent = issue.issueKey;
         clone.querySelector('.list-title').textContent = issue.title;
-        clone.querySelector('.list-sub').textContent = `${issue.issueType} • ${issue.projectName || ''} • ${formatDate(issue.dueDate)}`;
+        clone.querySelector('.list-sub').textContent = `${issue.issueType} • ${issue.projectName || ''} • ${formatDateTime(issue.dueDate)}`;
         const priBadge = clone.querySelector('.priority-badge');
         priBadge.textContent = issue.priority;
         priBadge.className = `priority-badge pri-${issue.priority}`;
-        const ds = issue.deadlineStatus || calculateDeadlineStatus(issue.dueDate, issue.status);
+        const ds = liveStatus(issue, new Date());
         const dlBadge = clone.querySelector('.deadline-badge');
         dlBadge.textContent = ds;
         dlBadge.className = `deadline-badge deadline-${ds}`;
-        clone.querySelector('.due-date').textContent = formatDateShort(issue.dueDate);
+        clone.querySelector('.due-date').textContent = dueDisplayText(issue, new Date());
         const row = clone.querySelector('.list-row');
         row.addEventListener('click', () => location.href = `/pages/issue.html?id=${issue.id}`);
         row.style.cursor = 'pointer';
@@ -198,7 +200,19 @@ const render = () => {
   const hasAny = total > 0;
   $('#empty').classList.toggle('hidden', hasAny);
   document.getElementById('sections').style.display = hasAny ? 'block' : 'none';
+  captureSnap();
   if (window.lucide) lucide.createIcons();
+};
+
+let renderedSnap = null;
+const captureSnap = () => { renderedSnap = deadlineSnapshot(all, new Date()); };
+const watchLive = () => {
+  onClockTick(() => {
+    const next = deadlineSnapshot(all, new Date());
+    let changed = !renderedSnap || renderedSnap.size !== next.size;
+    if (!changed) { for (const [k, v] of next) { if (renderedSnap.get(k) !== v) { changed = true; break; } } }
+    if (changed) { renderedSnap = next; render(); }
+  });
 };
 
 const createCompactCard = (issue) => {
@@ -215,14 +229,13 @@ const createCompactCard = (issue) => {
     priBadge.textContent = issue.priority;
     priBadge.className = `priority-badge pri-${issue.priority}`;
     clone.querySelector('.task-status').textContent = issue.status.replace(/_/g,' ');
-    const ds = issue.deadlineStatus || calculateDeadlineStatus(issue.dueDate, issue.status);
+    const ds = liveStatus(issue, new Date());
     const dueText = clone.querySelector('.due-text');
-    let dueLabel = formatDateShort(issue.dueDate);
+    let dueLabel = dueDisplayText(issue, new Date());
     let dueClass = 'upcoming';
-    if (ds === 'OVERDUE') { dueLabel = `Overdue • ${dueText}`; dueClass = 'overdue'; }
-    else if (ds === 'DUE_TODAY') { dueLabel = `Due today`; dueClass = 'today'; }
+    if (ds === 'OVERDUE') { dueLabel = `Overdue • ${formatDateTime(issue.dueDate)}`; dueClass = 'overdue'; }
+    else if (ds === 'DUE_TODAY') { dueLabel = `Due today at ${formatTime(issue.dueDate)}`; dueClass = 'today'; }
     else if (ds === 'COMPLETED') { dueLabel = `Completed ${formatDateShort(issue.completedDate || issue.dueDate)}`; dueClass = 'completed'; }
-    else { dueLabel = `Due ${dueText}`; dueClass = 'upcoming'; }
     const deadlineEl = clone.querySelector('.deadline');
     deadlineEl.className = `deadline ${dueClass}`;
     dueText.textContent = dueLabel;
@@ -247,4 +260,4 @@ const createCompactCard = (issue) => {
   return card;
 };
 
-init();
+init().then(() => watchLive());

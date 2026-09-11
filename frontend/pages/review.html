@@ -150,7 +150,7 @@
         <div class="review-page-header">
           <div class="review-title-block">
             <h2>Review</h2>
-            <p>Issues awaiting approval. When assignee moves to <b>In Review</b>, it appears for the reporter.</p>
+            <p>Issues created by you that are ready for review. They appear when someone moves them to <b>Review</b>.</p>
           </div>
           <div class="review-header-actions">
             <select id="projectSelect" class="form-select" style="min-width:200px"></select>
@@ -172,8 +172,8 @@
             <div id="reviewList" class="queue-list" role="list"></div>
             <div id="emptyReview" class="empty-state hidden" style="margin-top:12px">
               <div class="empty-icon">👁</div>
-              <div class="empty-title">No issues in review</div>
-              <div class="empty-desc">Move issues to <b>In Review</b> from Board to see them here.</div>
+              <div class="empty-title">No review requests</div>
+              <div class="empty-desc">Issues you created will appear here when someone moves them to <b>Review</b>.</div>
             </div>
           </div>
 
@@ -263,12 +263,14 @@
       </div>
       <div class="review-card-title"></div>
       <div class="review-card-meta">
+        <div><b>Created by:</b> <span class="review-reporter"></span></div>
+        <div><b>Moved to Review by:</b> <span class="review-moved-by"></span></div>
+        <div><b>Moved on:</b> <span class="review-moved-at"></span></div>
         <div><b>Assignee:</b> <span class="review-assignee"></span></div>
-        <div><b>Reporter:</b> <span class="review-reporter"></span></div>
         <div><b>Due:</b> <span class="review-due"></span></div>
       </div>
       <div class="review-card-foot">
-        <span class="review-status">IN REVIEW</span>
+        <span class="review-status">REVIEW</span>
         <span class="issue-type-badge"></span>
       </div>
     </div>

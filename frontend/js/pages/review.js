@@ -3,8 +3,14 @@ import { api } from '../core/api.js';
 import { initSidebar } from '../components/sidebar.js';
 import { initTopnav } from '../components/navbar.js';
 import { notify } from '../components/toast.js';
-import { formatDate, formatDateShort, timeAgo } from '../utils/formatters.js';
-import { calculateDeadlineStatus } from '../utils/deadline.js';
+import { formatDate, formatDateShort, formatDateTime, formatTime, timeAgo } from '../utils/formatters.js';
+import { calculateDeadlineStatus, liveStatus } from '../utils/deadline.js';
+
+const isReviewStatus = (s) => {
+  if (!s) return false;
+  const u = String(s).toUpperCase();
+  return u === 'REVIEW' || u === 'IN_REVIEW' || u.includes('REVIEW');
+};
 
 const user = auth.requireAuth();
 initSidebar('review');
@@ -58,15 +64,16 @@ reviewViewBtns.forEach(btn => {
     activeReviewView = btn.dataset.view;
     localStorage.setItem('reviewView', activeReviewView);
     updateReviewViewUI();
-    renderFiltered();
+    await load();
   });
 });
 updateReviewViewUI();
 
 const getFilteredForView = () => {
   if (activeReviewView === 'my') {
-    // My Reviews: where current user is reporter (triggered) or assignee
-    return allIssues.filter(i => String(i.reporterId) === String(user.id) || String(i.assigneeId) === String(user.id));
+    // My Reviews: issues I CREATED that are now in REVIEW (creator-aware per spec)
+    // WHERE status contains REVIEW AND reporterId === currentUser.id
+    return allIssues.filter(i => String(i.reporterId) === String(user.id));
   }
   return allIssues;
 };
@@ -83,15 +90,26 @@ const renderFiltered = () => {
 const load = async () => {
   if (!activeProjectId) { renderList([]); return; }
   try {
-    const issues = await api.get(`/api/projects/${activeProjectId}/issues`);
-    allIssues = issues.filter(i => i.status === 'IN_REVIEW');
+    if (activeReviewView === 'my') {
+      // Creator-aware backend query: WHERE status is review-like AND reporterId = currentUser
+      try {
+        allIssues = await api.get('/api/issues/review', { params: { projectId: activeProjectId } });
+      } catch {
+        // fallback to client-side filtering if endpoint unavailable
+        const issues = await api.get(`/api/projects/${activeProjectId}/issues`);
+        allIssues = issues.filter(i => isReviewStatus(i.status) && String(i.reporterId) === String(user.id));
+      }
+    } else {
+      const issues = await api.get(`/api/projects/${activeProjectId}/issues`);
+      allIssues = issues.filter(i => isReviewStatus(i.status));
+    }
     renderFiltered();
   } catch (e) { notify.error(e.message); }
 };
 
 const renderList = (issues) => {
   const has = issues.length;
-  reviewCount.textContent = has ? `${has} ${has===1 ? 'issue' : 'issues'} awaiting review` : 'No issues awaiting';
+  reviewCount.textContent = has ? `REVIEW REQUESTS · ${has}` : 'No issues awaiting review';
   reviewCount.classList.toggle('has-pending', has>0);
   reviewList.textContent = '';
   const queueHint = $('#queueHint');
@@ -116,10 +134,20 @@ const renderList = (issues) => {
     pri.className = `priority-badge pri-${issue.priority}`;
     const typeBadge = clone.querySelector('.issue-type-badge');
     if (typeBadge) { typeBadge.textContent = issue.issueType; typeBadge.className = `issue-type-badge type-${issue.issueType}`; }
-    clone.querySelector('.review-assignee').textContent = issue.assigneeName || 'Unassigned';
-    clone.querySelector('.review-reporter').textContent = issue.reporterName || '-';
+    // Creator-aware display per spec
+    const isCreator = String(issue.reporterId) === String(user.id);
+    const createdByEl = clone.querySelector('.review-reporter');
+    if (createdByEl) createdByEl.textContent = isCreator ? 'You' : (issue.reporterName || '-');
+    // Assignee still useful
+    const assigneeEl = clone.querySelector('.review-assignee');
+    if (assigneeEl) assigneeEl.textContent = issue.assigneeName || 'Unassigned';
+    // Moved to Review by
+    const movedByEl = clone.querySelector('.review-moved-by');
+    if (movedByEl) movedByEl.textContent = issue.movedToReviewByName || (issue.movedToReviewBy ? `User ${issue.movedToReviewBy}` : '—');
+    const movedAtEl = clone.querySelector('.review-moved-at');
+    if (movedAtEl) movedAtEl.textContent = issue.movedToReviewAt ? formatDateTime(issue.movedToReviewAt) : (issue.movedToReviewAt === null && isReviewStatus(issue.status) ? '—' : formatDate(issue.updatedAt));
     const dueEl = clone.querySelector('.review-due');
-    const ds = issue.deadlineStatus || calculateDeadlineStatus(issue.dueDate, issue.status);
+    const ds = liveStatus(issue, new Date());
     const dueText = formatDateShort(issue.dueDate);
     dueEl.textContent = dueText;
     dueEl.classList.remove('overdue','soon','ok');
@@ -191,16 +219,19 @@ const renderDetail = (issue) => {
     if (idx === currentIdx) el.classList.add('active');
   });
 
-  // grid
+  // grid — creator-aware per spec
   leftPane.textContent = '';
+  const isCreatorDetail = String(issue.reporterId) === String(user.id);
   const gridData = [
     { label: 'Type', value: issue.issueType },
     { label: 'Priority', value: issue.priority, isBadge: true },
     { label: 'Status', value: issue.status },
     { label: 'Assignee', value: issue.assigneeName || 'Unassigned' },
-    { label: 'Reporter', value: issue.reporterName || user.name },
+    { label: 'Created by', value: isCreatorDetail ? 'You' : (issue.reporterName || '-') },
+    { label: 'Moved to Review by', value: issue.movedToReviewByName || (issue.movedToReviewBy ? `User ${issue.movedToReviewBy}` : '—') },
+    { label: 'Moved on', value: issue.movedToReviewAt ? formatDateTime(issue.movedToReviewAt) : '—' },
     { label: 'Project', value: `${issue.projectKey || ''} ${issue.projectName || ''}`.trim() || '-' },
-    { label: 'Due Date', value: `${formatDate(issue.dueDate)} • ${ds}` },
+    { label: 'Due Date & Time', value: `${formatDateTime(issue.dueDate)} • ${ds}` },
     { label: 'Created', value: formatDate(issue.createdAt) },
   ];
   gridData.forEach(({label,value,isBadge}) => {
@@ -255,7 +286,10 @@ const renderChanges = (activity, comments) => {
     return;
   }
 
-  const sent = activity.find(a => a.details?.includes('IN_REVIEW'));
+  const sent = activity.find(a => {
+    const d = (a.details || '').toUpperCase();
+    return d.includes('REVIEW') || d.includes('IN_REVIEW');
+  });
   if (sent) {
     const who = document.createElement('div');
     who.style.background='#fffbeb';
@@ -312,8 +346,17 @@ $('#approveConfirmBtn')?.addEventListener('click', async () => {
   btn.textContent = 'Approving…'; btn.disabled=true;
   try {
     if (comment) await api.post(`/api/issues/${selectedId}/comments`, { content: comment, userId: user.id });
-    await api.patch(`/api/issues/${selectedId}/status`, { status: 'DONE', userId: user.id });
-    notify.success('Approved → moved to DONE');
+    let target = 'DONE';
+    try {
+      const issue = allIssues.find(i=> String(i.id)===String(selectedId));
+      if (issue) {
+        const proj = await api.get(`/api/projects/${issue.projectId}`);
+        const wf = proj.workflow && Array.isArray(proj.workflow) ? proj.workflow : (typeof proj.workflow === 'string' ? JSON.parse(proj.workflow) : []);
+        if (wf.length) target = wf[wf.length - 1];
+      }
+    } catch {}
+    await api.patch(`/api/issues/${selectedId}/status`, { status: target, userId: user.id });
+    notify.success(`Approved → moved to ${target}`);
     $('#reviewComment').value = '';
     await load();
   } catch (e) { notify.error(e.message); }
@@ -331,7 +374,18 @@ $('#rejectConfirmBtn')?.addEventListener('click', async () => {
   try {
     const issue = allIssues.find(i=> String(i.id)===String(selectedId)) || await api.get(`/api/issues/${selectedId}`);
     await api.post(`/api/issues/${selectedId}/comments`, { content: `Rejected: ${comment}`, userId: user.id });
-    await api.patch(`/api/issues/${selectedId}/status`, { status: 'IN_PROGRESS', userId: user.id });
+    // Pick appropriate previous state: prefer IN_PROGRESS, else previous workflow step before REVIEW, else TODO
+    let target = 'IN_PROGRESS';
+    try {
+      const proj = await api.get(`/api/projects/${issue.projectId}`);
+      const wf = proj.workflow && Array.isArray(proj.workflow) ? proj.workflow : (typeof proj.workflow === 'string' ? JSON.parse(proj.workflow) : []);
+      if (!wf.includes(target)) {
+        const reviewIdx = wf.findIndex(s => isReviewStatus(s));
+        if (reviewIdx > 0) target = wf[reviewIdx - 1];
+        else if (wf.length) target = wf[0];
+      }
+    } catch {}
+    await api.patch(`/api/issues/${selectedId}/status`, { status: target, userId: user.id });
     if (issue.assigneeId) {
       await api.patch(`/api/issues/${selectedId}/assignee`, { assigneeId: issue.assigneeId, userId: user.id }).catch(()=>{});
     }

@@ -10,6 +10,7 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
     List<Issue> findByAssigneeId(Long assigneeId);
     List<Issue> findByProjectIdAndAssigneeId(Long projectId, Long assigneeId);
     List<Issue> findByParentId(Long parentId);
+    List<Issue> findByReporterId(Long reporterId);
     long countByProjectId(Long projectId);
     long countByProjectIdAndStatus(Long projectId, String status);
     long countByParentId(Long parentId);

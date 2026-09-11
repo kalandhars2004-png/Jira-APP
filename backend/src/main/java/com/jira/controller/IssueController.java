@@ -140,6 +140,19 @@ public class IssueController {
         return ResponseEntity.ok(ApiResponse.success(issueService.getByAssignee(userId)));
     }
 
+    // Review queue: issues created by current user that are now in REVIEW
+    // WHERE status contains REVIEW AND reporterId = currentUser.id
+    @GetMapping("/review")
+    public ResponseEntity<ApiResponse<List<IssueResponse>>> getReviewQueue(
+            @RequestHeader(value = "X-User-Id", required = false) Long headerUserId,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long projectId) {
+        Long uid = headerUserId != null ? headerUserId : userId;
+        if (uid == null) throw new com.jira.exception.ForbiddenException("Authentication required");
+        List<IssueResponse> reviews = issueService.getReviewIssuesForCreator(uid, projectId);
+        return ResponseEntity.ok(ApiResponse.success(reviews));
+    }
+
     @GetMapping("/{id}/subtasks")
     public ResponseEntity<ApiResponse<List<IssueResponse>>> getSubtasks(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(issueService.getSubtasks(id)));
