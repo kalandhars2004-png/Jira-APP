@@ -183,6 +183,7 @@ const init = async () => {
     await Promise.all([loadMembers(), loadIssues()]);
     initDuePicker();
     watchLiveOverdue();
+    startBoardClearTimer();
     modalProjectSelect()?.addEventListener('change', async () => {
       await loadMembersForProject(Number(modalProjectSelect().value));
       // also update status dropdown for that project's workflow
@@ -357,6 +358,32 @@ const watchLiveOverdue = () => {
     renderedDeadlineSnapshot = deadlineSnapshot(allIssues, new Date());
     renderBoard();
   });
+};
+const APPROVED_GRACE_MS_BOARD = 2 * 60 * 1000;
+let boardClearTimer = null;
+const startBoardClearTimer = () => {
+  if (boardClearTimer) clearInterval(boardClearTimer);
+  boardClearTimer = setInterval(() => {
+    const now = new Date();
+    document.querySelectorAll('.issue-card.completed').forEach(card => {
+      const approvedAtStr = card.dataset.approvedAt;
+      if (!approvedAtStr) return;
+      const approvedAt = new Date(approvedAtStr);
+      const remaining = APPROVED_GRACE_MS_BOARD - (now - approvedAt);
+      const timerText = card.querySelector('.timer-text');
+      const timerFill = card.querySelector('.timer-fill');
+      if (remaining <= 0) {
+        if (timerText) timerText.textContent = 'Approved';
+        if (timerFill) timerFill.style.width = '0%';
+      } else {
+        if (timerText) {
+          const sec = Math.ceil(remaining / 1000);
+          timerText.textContent = `Clearing in ${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
+        }
+        if (timerFill) timerFill.style.width = `${(remaining / APPROVED_GRACE_MS_BOARD * 100).toFixed(1)}%`;
+      }
+    });
+  }, 1000);
 };
 
 const renderBoard = () => {

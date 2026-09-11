@@ -152,16 +152,8 @@ const render = () => {
     const ds = liveStatus(i, now);
     if (groups[ds]) groups[ds].push(i); else groups.UPCOMING.push(i);
   });
-  // 2-min auto-clear for creator-approved (DONE) — hide from view after 2 min, not DB
-  // Keep only COMPLETED where approved within grace period; older completed auto-cleared
-  const allCompleted = groups.COMPLETED;
-  const visibleCompleted = allCompleted.filter(i => {
-    const approvedTime = getApprovedTime(i);
-    if (!approvedTime) return true; // legacy without time: keep visible
-    const elapsed = now - approvedTime;
-    return elapsed < APPROVED_GRACE_MS && elapsed >= 0;
-  });
-  groups.COMPLETED = visibleCompleted;
+  // 2-min timer for creator-approved (DONE) — show countdown but keep in view (per latest request: no auto-remove)
+  // All COMPLETED stay visible; timer only for recently approved within grace period
 
   const overdue = groups.OVERDUE.length;
   const dueToday = groups.DUE_TODAY.length;
@@ -247,17 +239,17 @@ const startClearTimer = () => {
   if (clearTimerInterval) clearInterval(clearTimerInterval);
   clearTimerInterval = setInterval(() => {
     const now = new Date();
-    let needsRender = false;
     document.querySelectorAll('.task-card-compact.completed-card').forEach(card => {
       const approvedAtStr = card.dataset.approvedAt;
       if (!approvedAtStr) return;
       const approvedAt = new Date(approvedAtStr);
       const remaining = APPROVED_GRACE_MS - (now - approvedAt);
+      const timerText = card.querySelector('.timer-text');
+      const timerFill = card.querySelector('.timer-fill');
       if (remaining <= 0) {
-        needsRender = true;
+        if (timerText) timerText.textContent = 'Approved';
+        if (timerFill) timerFill.style.width = '0%';
       } else {
-        const timerText = card.querySelector('.timer-text');
-        const timerFill = card.querySelector('.timer-fill');
         if (timerText) {
           const sec = Math.ceil(remaining / 1000);
           const m = Math.floor(sec / 60);
@@ -267,7 +259,6 @@ const startClearTimer = () => {
         if (timerFill) timerFill.style.width = `${(remaining / APPROVED_GRACE_MS * 100).toFixed(1)}%`;
       }
     });
-    if (needsRender) render();
   }, 1000);
 };
 

@@ -9,6 +9,12 @@ const getBadgeIcon = (ds) => {
   return '○';
 };
 
+const APPROVED_GRACE_MS = 2 * 60 * 1000;
+const getApprovedTime = (issue) => {
+  if (issue.updatedAt) { const d = new Date(issue.updatedAt); if (!isNaN(d.getTime())) return d; }
+  if (issue.completedDate) { const d = new Date(issue.completedDate); if (!isNaN(d.getTime())) return d; }
+  return null;
+};
 const isOnTime = (issue) => {
   if (!issue?.dueDate || !issue?.completedDate) return true;
   return new Date(issue.completedDate) <= new Date(issue.dueDate);
@@ -66,6 +72,38 @@ const buildCard = (issue, tpl) => {
       completedBox.querySelector('.completed-meta').textContent = `Due ${formatDateShort(issue.dueDate)} • Done ${formatDateShort(issue.completedDate)}`;
     } else {
       completedBox.style.display = 'none';
+    }
+    // 2-min timer for approved — only when approved then show, per user request
+    const timerEl = clone.querySelector('.clear-timer');
+    const timerBar = clone.querySelector('.timer-bar');
+    if (ds === 'COMPLETED' && timerEl && timerBar) {
+      const approvedTime = getApprovedTime(issue);
+      if (approvedTime) {
+        const remaining = APPROVED_GRACE_MS - (new Date() - approvedTime);
+        if (remaining > 0 && remaining <= APPROVED_GRACE_MS) {
+          timerEl.classList.remove('hidden');
+          timerEl.style.display = 'flex';
+          timerBar.classList.remove('hidden');
+          timerBar.style.display = 'block';
+          const timerText = timerEl.querySelector('.timer-text');
+          const timerFill = timerBar.querySelector('.timer-fill');
+          if (timerText) {
+            const sec = Math.ceil(remaining / 1000);
+            timerText.textContent = `Clearing in ${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
+          }
+          if (timerFill) timerFill.style.width = `${(remaining / APPROVED_GRACE_MS * 100).toFixed(1)}%`;
+          card.dataset.approvedAt = approvedTime.toISOString();
+        } else {
+          timerEl.classList.add('hidden');
+          timerBar.classList.add('hidden');
+        }
+      } else {
+        if (timerEl) timerEl.classList.add('hidden');
+        if (timerBar) timerBar.classList.add('hidden');
+      }
+    } else {
+      if (timerEl) timerEl.classList.add('hidden');
+      if (timerBar) timerBar.classList.add('hidden');
     }
     const wrapper = document.createElement('div');
     wrapper.appendChild(clone);

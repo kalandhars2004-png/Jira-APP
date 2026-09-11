@@ -167,6 +167,36 @@ const renderList = (issues) => {
     else dueEl.classList.add('ok');
     const statusEl = clone.querySelector('.review-status');
     if (statusEl) statusEl.textContent = issue.status;
+    // 2-min timer for approved — only when approved then show
+    const timerEl = clone.querySelector('.clear-timer');
+    const timerBar = clone.querySelector('.timer-bar');
+    if (timerEl && timerBar) {
+      const isDone = String(issue.status).toUpperCase() === 'DONE' || String(issue.status).toUpperCase() === 'COMPLETED' || issue.deadlineStatus === 'COMPLETED';
+      if (isDone && issue.updatedAt) {
+        const approvedAt = new Date(issue.updatedAt);
+        const remaining = 120000 - (new Date() - approvedAt);
+        if (remaining > 0 && remaining <= 120000) {
+          timerEl.classList.remove('hidden');
+          timerEl.style.display = 'flex';
+          timerBar.classList.remove('hidden');
+          timerBar.style.display = 'block';
+          const timerText = timerEl.querySelector('.timer-text');
+          if (timerText) {
+            const sec = Math.ceil(remaining / 1000);
+            timerText.textContent = `Clearing in ${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
+          }
+          const timerFill = timerBar.querySelector('.timer-fill');
+          if (timerFill) timerFill.style.width = `${(remaining / 120000 * 100).toFixed(1)}%`;
+          card.dataset.approvedAt = approvedAt.toISOString();
+        } else {
+          timerEl.classList.add('hidden');
+          timerBar.classList.add('hidden');
+        }
+      } else {
+        timerEl.classList.add('hidden');
+        timerBar.classList.add('hidden');
+      }
+    }
 
     const onSelect = () => selectIssue(issue.id);
     card.addEventListener('click', onSelect);
@@ -435,4 +465,29 @@ $('#rejectConfirmBtn')?.addEventListener('click', async () => {
   finally { btn.textContent=orig; btn.disabled=false; }
 });
 
-init();
+let reviewClearTimer = null;
+const startReviewClearTimer = () => {
+  if (reviewClearTimer) clearInterval(reviewClearTimer);
+  reviewClearTimer = setInterval(() => {
+    const now = new Date();
+    document.querySelectorAll('.review-card').forEach(card => {
+      const approvedAtStr = card.dataset.approvedAt;
+      if (!approvedAtStr) return;
+      const approvedAt = new Date(approvedAtStr);
+      const remaining = 120000 - (now - approvedAt);
+      const timerText = card.querySelector('.timer-text');
+      const timerFill = card.querySelector('.timer-fill');
+      if (remaining <= 0) {
+        if (timerText) timerText.textContent = 'Approved';
+        if (timerFill) timerFill.style.width = '0%';
+      } else {
+        if (timerText) {
+          const sec = Math.ceil(remaining / 1000);
+          timerText.textContent = `Clearing in ${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
+        }
+        if (timerFill) timerFill.style.width = `${(remaining / 120000 * 100).toFixed(1)}%`;
+      }
+    });
+  }, 1000);
+};
+init().then(() => startReviewClearTimer());
