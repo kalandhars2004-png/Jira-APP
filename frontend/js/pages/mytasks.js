@@ -32,6 +32,9 @@ const getApprovedTime = (issue) => {
   if (issue.completedDate) { const d = new Date(issue.completedDate); if (!isNaN(d.getTime())) return d; }
   return null;
 };
+// Personal board drag — for him working tracking, stored per user in localStorage
+const getPersonalBoard = () => { try { return JSON.parse(localStorage.getItem(`mytasks_board_${user.id}`) || '{}'); } catch { return {}; } };
+const setPersonalBoard = (map) => localStorage.setItem(`mytasks_board_${user.id}`, JSON.stringify(map));
 
 const init = async () => {
   try {
@@ -148,9 +151,16 @@ const render = () => {
 
   const groups = { OVERDUE: [], DUE_TODAY: [], UPCOMING: [], COMPLETED: [] };
   const now = new Date();
+  const personalBoard = getPersonalBoard();
   filtered.forEach((i) => {
-    const ds = liveStatus(i, now);
-    if (groups[ds]) groups[ds].push(i); else groups.UPCOMING.push(i);
+    const personalCol = personalBoard[String(i.id)];
+    // If user dragged it personally, respect that for tracking (just for him)
+    if (personalCol && groups[personalCol] !== undefined) {
+      groups[personalCol].push(i);
+    } else {
+      const ds = liveStatus(i, now);
+      if (groups[ds]) groups[ds].push(i); else groups.UPCOMING.push(i);
+    }
   });
   // 2-min timer for creator-approved (DONE) — show countdown but keep in view (per latest request: no auto-remove)
   // All COMPLETED stay visible; timer only for recently approved within grace period
@@ -224,6 +234,7 @@ const render = () => {
   if (boardEl) boardEl.style.display = hasAny ? 'grid' : 'none';
   captureSnap();
   if (window.lucide) lucide.createIcons();
+  bindPersonalDrag();
 };
 
 let renderedSnap = null;
@@ -333,6 +344,18 @@ const createCompactCard = (issue) => {
     clone.querySelector('.project-name').textContent = issue.projectName || '';
     card.addEventListener('click', () => location.href = `/pages/issue.html?id=${issue.id}`);
     card.style.cursor = 'pointer';
+    card.draggable = true;
+    card.dataset.issueId = issue.id;
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(issue.id));
+      card.classList.add('dragging');
+      card.style.opacity = '0.5';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      card.style.opacity = '';
+    });
     const wrapper = document.createElement('div');
     wrapper.appendChild(clone);
     // need to create icons after append
@@ -343,6 +366,27 @@ const createCompactCard = (issue) => {
   const card = createIssueCard(issue);
   card.addEventListener('click', () => location.href = `/pages/issue.html?id=${issue.id}`);
   return card;
+};
+
+const bindPersonalDrag = () => {
+  document.querySelectorAll('.mytasks-col-body').forEach(col => {
+    if (col.dataset.bound) return;
+    col.dataset.bound = '1';
+    col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drag-over'); });
+    col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const issueId = e.dataTransfer.getData('text/plain');
+      const targetCol = col.closest('.mytasks-col')?.dataset.col;
+      if (!issueId || !targetCol) return;
+      const map = getPersonalBoard();
+      map[String(issueId)] = targetCol;
+      setPersonalBoard(map);
+      render();
+      if (window.lucide) window.lucide.createIcons();
+    });
+  });
 };
 
 init().then(() => { watchLive(); startClearTimer(); });

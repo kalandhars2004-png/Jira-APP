@@ -58,9 +58,11 @@
     .mytasks-col-count.today { background:#fffbeb; border-color:#fde68a; color:#92400e; }
     .mytasks-col-count.upcoming { background:#eff6ff; border-color:#bfdbfe; color:#1e40af; }
     .mytasks-col-count.completed { background:#f0fdf4; border-color:#bbf7d0; color:#15803d; }
-    .mytasks-col-body { padding:10px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; flex:1; min-height:0; scrollbar-width:thin; }
+    .mytasks-col-body { padding:10px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; flex:1; min-height:0; scrollbar-width:thin; transition: background .15s, border .15s; }
     .mytasks-col-body::-webkit-scrollbar { width:6px; }
     .mytasks-col-body::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:99px; }
+    .mytasks-col-body.drag-over { background:#eef2ff; border:2px dashed #a5b4fc; border-radius:8px; }
+    .task-card-compact.dragging { opacity:0.5; transform:rotate(1deg); }
     /* Cards — keep existing .task-card-compact but refine for board */
     .task-grid { display:flex; flex-direction:column; gap:10px; }
     .task-card-compact { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px; cursor:pointer; transition: border-color .15s, box-shadow .15s, transform .15s; display:flex; flex-direction:column; gap:0; }
