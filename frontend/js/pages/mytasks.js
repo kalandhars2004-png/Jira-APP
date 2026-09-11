@@ -25,6 +25,13 @@ let projects = [];
 let viewMode = localStorage.getItem('mytasksView') || 'board';
 
 const priorityWeight = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+const APPROVED_GRACE_MS = 2 * 60 * 1000; // 2 minutes per spec: creator approved → clear from view after 2 min (not DB)
+const getApprovedTime = (issue) => {
+  // Use updatedAt (precise) as approval time; fallback to completedDate
+  if (issue.updatedAt) { const d = new Date(issue.updatedAt); if (!isNaN(d.getTime())) return d; }
+  if (issue.completedDate) { const d = new Date(issue.completedDate); if (!isNaN(d.getTime())) return d; }
+  return null;
+};
 
 const init = async () => {
   try {
@@ -144,12 +151,22 @@ const render = () => {
     const ds = liveStatus(i, now);
     if (groups[ds]) groups[ds].push(i); else groups.UPCOMING.push(i);
   });
+  // 2-min auto-clear for creator-approved (DONE) — hide from view after 2 min, not DB
+  // Keep only COMPLETED where approved within grace period; older completed auto-cleared
+  const allCompleted = groups.COMPLETED;
+  const visibleCompleted = allCompleted.filter(i => {
+    const approvedTime = getApprovedTime(i);
+    if (!approvedTime) return true; // legacy without time: keep visible
+    const elapsed = now - approvedTime;
+    return elapsed < APPROVED_GRACE_MS && elapsed >= 0;
+  });
+  groups.COMPLETED = visibleCompleted;
 
-  const total = filtered.length;
   const overdue = groups.OVERDUE.length;
   const dueToday = groups.DUE_TODAY.length;
   const upcoming = groups.UPCOMING.length;
   const completed = groups.COMPLETED.length;
+  const total = overdue + dueToday + upcoming + completed;
   const rate = total ? Math.round((completed*100)/total) : 0;
   $('#heroOverdue').textContent = overdue;
   $('#heroDueToday').textContent = dueToday;
@@ -224,6 +241,34 @@ const watchLive = () => {
     render();
   });
 };
+let clearTimerInterval = null;
+const startClearTimer = () => {
+  if (clearTimerInterval) clearInterval(clearTimerInterval);
+  clearTimerInterval = setInterval(() => {
+    const now = new Date();
+    let needsRender = false;
+    document.querySelectorAll('.task-card-compact.completed-card').forEach(card => {
+      const approvedAtStr = card.dataset.approvedAt;
+      if (!approvedAtStr) return;
+      const approvedAt = new Date(approvedAtStr);
+      const remaining = APPROVED_GRACE_MS - (now - approvedAt);
+      if (remaining <= 0) {
+        needsRender = true;
+      } else {
+        const timerText = card.querySelector('.timer-text');
+        const timerFill = card.querySelector('.timer-fill');
+        if (timerText) {
+          const sec = Math.ceil(remaining / 1000);
+          const m = Math.floor(sec / 60);
+          const s = sec % 60;
+          timerText.textContent = `Clearing in ${m}:${String(s).padStart(2,'0')}`;
+        }
+        if (timerFill) timerFill.style.width = `${(remaining / APPROVED_GRACE_MS * 100).toFixed(1)}%`;
+      }
+    });
+    if (needsRender) render();
+  }, 1000);
+};
 
 const createCompactCard = (issue) => {
   const tpl = document.getElementById('compactCardTemplate');
@@ -251,6 +296,42 @@ const createCompactCard = (issue) => {
     const deadlineEl = clone.querySelector('.deadline');
     deadlineEl.className = `deadline ${dueClass}`;
     dueText.textContent = dueLabel;
+    // 2-min auto-clear timer for COMPLETED (creator approved) — show countdown
+    const timerEl = clone.querySelector('.clear-timer');
+    const timerBar = clone.querySelector('.timer-bar');
+    const timerFill = clone.querySelector('.timer-fill');
+    const timerText = clone.querySelector('.timer-text');
+    if (ds === 'COMPLETED' && timerEl && timerBar) {
+      const approvedTime = getApprovedTime(issue);
+      if (approvedTime) {
+        const now2 = new Date();
+        const elapsed = now2 - approvedTime;
+        const remaining = APPROVED_GRACE_MS - elapsed;
+        if (remaining > 0 && remaining <= APPROVED_GRACE_MS) {
+          const sec = Math.ceil(remaining / 1000);
+          const m = Math.floor(sec / 60);
+          const s = sec % 60;
+          if (timerText) timerText.textContent = `Clearing in ${m}:${String(s).padStart(2,'0')}`;
+          if (timerFill) timerFill.style.width = `${(remaining / APPROVED_GRACE_MS * 100).toFixed(1)}%`;
+          timerEl.classList.remove('hidden');
+          timerEl.style.display = 'flex';
+          timerBar.classList.remove('hidden');
+          timerBar.style.display = 'block';
+          // store remaining for live updates
+          card.dataset.approvedAt = approvedTime.toISOString();
+        } else {
+          // already expired — will be filtered out next render, but hide timer for now
+          timerEl.classList.add('hidden');
+          timerBar.classList.add('hidden');
+        }
+      } else {
+        timerEl.classList.add('hidden');
+        timerBar.classList.add('hidden');
+      }
+    } else if (timerEl) {
+      timerEl.classList.add('hidden');
+      if (timerBar) timerBar.classList.add('hidden');
+    }
     // icon
     const icon = deadlineEl.querySelector('i');
     if (icon) {
@@ -272,4 +353,4 @@ const createCompactCard = (issue) => {
   return card;
 };
 
-init().then(() => watchLive());
+init().then(() => { watchLive(); startClearTimer(); });
