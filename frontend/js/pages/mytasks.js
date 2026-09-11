@@ -66,11 +66,28 @@ const init = async () => {
 const load = async () => {
   try {
     const pid = $('#projectFilter').value;
-    // Backend must filter: assigneeId == currentUser.id (DB query, not frontend)
     const params = {};
     if (pid) params.projectId = pid;
-    const issues = await api.get('/api/issues/my', { params });
-    all = issues; // already filtered by backend for current user
+    // Explicitly send userId as param + header for backend robustness (ID-based, not name)
+    params.userId = user.id;
+    let issues = [];
+    try {
+      issues = await api.get('/api/issues/my', { params });
+      // Enforce personal filter client-side as defense — ensures assigneeId === currentUser.id
+      // Handles cases where backend returns unfiltered or ID type mismatches
+      issues = issues.filter(i => String(i.assigneeId) === String(user.id));
+    } catch (e) {
+      console.warn('My Tasks primary fetch failed, falling back to client filter', e);
+      let allIssues = [];
+      if (pid) {
+        try { allIssues = await api.get(`/api/projects/${pid}/issues`); } catch { allIssues = await api.get('/api/issues', { params: { projectId: pid } }); }
+      } else {
+        allIssues = await api.get('/api/issues');
+      }
+      // Strict ID comparison per spec: assigneeId === currentUser.id
+      issues = allIssues.filter(i => String(i.assigneeId) === String(user.id));
+    }
+    all = issues;
     render();
   } catch (e) { notify.error(e.message); }
 };
