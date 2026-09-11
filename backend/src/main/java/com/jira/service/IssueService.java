@@ -405,9 +405,8 @@ public class IssueService {
     }
 
     private boolean isReviewOrDoneStatus(String status) {
-        if (status == null) return false;
-        if (isReviewStatus(status)) return true;
-        return "DONE".equalsIgnoreCase(status) || "COMPLETED".equalsIgnoreCase(status);
+        // Review page shows only REVIEW — approved (DONE) auto-removes from review view per latest spec
+        return isReviewStatus(status);
     }
 
     public List<IssueResponse> getSubtasks(Long parentId) {

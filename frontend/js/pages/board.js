@@ -365,6 +365,7 @@ const startBoardClearTimer = () => {
   if (boardClearTimer) clearInterval(boardClearTimer);
   boardClearTimer = setInterval(() => {
     const now = new Date();
+    let needsRender = false;
     document.querySelectorAll('.issue-card.completed').forEach(card => {
       const approvedAtStr = card.dataset.approvedAt;
       if (!approvedAtStr) return;
@@ -373,8 +374,7 @@ const startBoardClearTimer = () => {
       const timerText = card.querySelector('.timer-text');
       const timerFill = card.querySelector('.timer-fill');
       if (remaining <= 0) {
-        if (timerText) timerText.textContent = 'Approved';
-        if (timerFill) timerFill.style.width = '0%';
+        needsRender = true;
       } else {
         if (timerText) {
           const sec = Math.ceil(remaining / 1000);
@@ -383,11 +383,28 @@ const startBoardClearTimer = () => {
         if (timerFill) timerFill.style.width = `${(remaining / APPROVED_GRACE_MS_BOARD * 100).toFixed(1)}%`;
       }
     });
+    if (needsRender) renderBoard();
   }, 1000);
+};
+const isDoneStatusFrontend = (status) => {
+  if (!status) return false;
+  if (String(status).toUpperCase() === 'DONE') return true;
+  if (String(status).toUpperCase() === 'COMPLETED') return true;
+  const last = currentWorkflow && currentWorkflow.length ? currentWorkflow[currentWorkflow.length - 1] : null;
+  return last ? String(last).toUpperCase() === String(status).toUpperCase() : false;
 };
 
 const renderBoard = () => {
-  const filtered = filteredIssues();
+  let filtered = filteredIssues();
+  // For board: approved DONE auto-clears from view after 2 min (show timer, then hide) — per user request
+  const nowFilter = new Date();
+  filtered = filtered.filter(issue => {
+    if (!isDoneStatusFrontend(issue.status)) return true;
+    const approvedAt = issue.updatedAt ? new Date(issue.updatedAt) : null;
+    if (!approvedAt || isNaN(approvedAt.getTime())) return true;
+    const elapsed = nowFilter - approvedAt;
+    return elapsed < APPROVED_GRACE_MS_BOARD;
+  });
   // group by workflow statuses
   const byStatus = {};
   currentWorkflow.forEach(s => byStatus[s] = []);

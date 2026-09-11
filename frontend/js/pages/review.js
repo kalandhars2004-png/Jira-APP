@@ -11,11 +11,8 @@ const isReviewStatus = (s) => {
   const u = String(s).toUpperCase();
   return u === 'REVIEW' || u === 'IN_REVIEW' || u.includes('REVIEW');
 };
-const isReviewOrDoneStatus = (s) => {
-  if (!s) return false;
-  const u = String(s).toUpperCase();
-  return isReviewStatus(s) || u === 'DONE' || u === 'COMPLETED';
-};
+// Review page shows only REVIEW (not DONE) — when creator approves, it becomes DONE and auto-removes from review
+const isReviewOrDoneStatus = isReviewStatus;
 
 const user = auth.requireAuth();
 initSidebar('review');
