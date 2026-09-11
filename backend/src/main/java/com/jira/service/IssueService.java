@@ -228,14 +228,19 @@ public class IssueService {
     @Transactional
     public IssueResponse updateStatus(Long id, String newStatus, Long userId) {
         Issue issue = getEntityById(id);
-        checkStatusChangePermission(issue, userId);
-        // Validate workflow transition: must respect project's workflow order
+        // For review approval (REVIEW -> DONE), require creator-only per spec
         Project project = projectRepo.findById(issue.getProjectId()).orElse(null);
-        List<String> wf = project != null ? parseWorkflow(project.getWorkflow()) : List.of("TODO","IN_PROGRESS","IN_REVIEW","DONE");
-        // Allow only sequential or any? For strict workflow, check if newStatus is in workflow and is next or previous? For now allow any in workflow but log
-        if (!wf.contains(newStatus)) throw new IllegalArgumentException("Invalid status for this project's workflow: " + newStatus);
+        List<String> wfForCheck = project != null ? parseWorkflow(project.getWorkflow()) : List.of("TODO","IN_PROGRESS","IN_REVIEW","DONE");
+        boolean isApproval = isReviewStatus(issue.getStatus()) && isDoneStatus(newStatus, wfForCheck);
+        if (isApproval) {
+            checkEditPermission(issue, userId);
+        } else {
+            checkStatusChangePermission(issue, userId);
+        }
+        // Validate workflow transition: must respect project's workflow order (reuse wfForCheck)
+        if (!wfForCheck.contains(newStatus)) throw new IllegalArgumentException("Invalid status for this project's workflow: " + newStatus);
         if (newStatus != null && !newStatus.equalsIgnoreCase(issue.getStatus())) {
-            handleStatusChange(issue, newStatus, userId, wf);
+            handleStatusChange(issue, newStatus, userId, wfForCheck);
             issue = issueRepo.save(issue);
         }
         return toResponse(issue);

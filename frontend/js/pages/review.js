@@ -275,6 +275,24 @@ const renderDetail = (issue) => {
   loading.style.fontSize='12px';
   loading.style.padding='10px';
   rightPane.appendChild(loading);
+
+  // Creator-only approve/reject UI per spec — hide for non-creator (view only)
+  const actionsEl = document.querySelector('.review-actions');
+  if (actionsEl) {
+    const canApprove = isCreatorDetail || user.role === 'ADMIN';
+    actionsEl.style.display = canApprove ? '' : 'none';
+    let roNote = document.getElementById('reviewReadOnlyNote');
+    if (!canApprove) {
+      if (!roNote) {
+        roNote = document.createElement('div');
+        roNote.id = 'reviewReadOnlyNote';
+        roNote.style.background='#f1f5f9'; roNote.style.border='1px solid #e2e8f0'; roNote.style.color='#475569'; roNote.style.padding='8px 12px'; roNote.style.borderRadius='8px'; roNote.style.fontSize='12px'; roNote.style.fontWeight='600'; roNote.style.display='flex'; roNote.style.alignItems='center'; roNote.style.gap='8px'; roNote.style.marginTop='10px';
+        roNote.innerHTML = '<i data-lucide="eye" style="width:14px;height:14px"></i> View only — only the creator can approve or reassign';
+        actionsEl.after(roNote);
+        if (window.lucide) window.lucide.createIcons();
+      } else roNote.style.display = 'flex';
+    } else if (roNote) roNote.style.display = 'none';
+  }
 };
 
 const renderChanges = (activity, comments) => {
@@ -350,6 +368,11 @@ rejectConfirm?.addEventListener('click', (e) => { if (e.target===rejectConfirm) 
 
 $('#approveConfirmBtn')?.addEventListener('click', async () => {
   if (!selectedId) return;
+  const issueForCheck = allIssues.find(i=> String(i.id)===String(selectedId));
+  if (issueForCheck && String(issueForCheck.reporterId) !== String(user.id) && user.role !== 'ADMIN') {
+    notify.error('Only the creator can approve this issue');
+    return;
+  }
   closeConfirm(approveConfirm);
   const comment = $('#reviewComment').value.trim();
   const btn = $('#approveBtn');
@@ -376,6 +399,11 @@ $('#approveConfirmBtn')?.addEventListener('click', async () => {
 
 $('#rejectConfirmBtn')?.addEventListener('click', async () => {
   if (!selectedId) return;
+  const issueForCheck2 = allIssues.find(i=> String(i.id)===String(selectedId));
+  if (issueForCheck2 && String(issueForCheck2.reporterId) !== String(user.id) && user.role !== 'ADMIN') {
+    notify.error('Only the creator can reject this issue');
+    return;
+  }
   closeConfirm(rejectConfirm);
   const comment = $('#reviewComment').value.trim();
   if (!comment) { notify.error('Add a comment for reject'); return; }
