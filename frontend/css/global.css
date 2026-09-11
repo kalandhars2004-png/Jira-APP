@@ -128,10 +128,16 @@ input, select, textarea { font-family: inherit; }
 }
 .app-shell { transition: grid-template-columns .26s ease-in-out; }
 .app-shell.sidebar-collapsed {
-  grid-template-columns: 68px 1fr;
+  grid-template-columns: 0 1fr;
 }
 .app-shell.sidebar-collapsed .sidebar {
-  width: 68px;
+  width: 0;
+  min-width: 0;
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-right: none;
 }
 .app-shell.sidebar-collapsed .brand-text,
 .app-shell.sidebar-collapsed .brand-sub,
@@ -678,7 +684,7 @@ input, select, textarea { font-family: inherit; }
 
 
 /* ============================================================
-   DateTimePicker — reusable date+time scheduling component
+   DateTimePicker ï¿½ reusable date+time scheduling component
    ============================================================ */
 .dtp { position: relative; }
 .dtp-fields { display: flex; gap: 8px; align-items: stretch; }
