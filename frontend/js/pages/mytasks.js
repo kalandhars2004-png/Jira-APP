@@ -95,8 +95,9 @@ const load = async () => {
       issues = allIssues.filter(i => String(i.assigneeId) === String(user.id));
     }
     all = issues;
+    console.log(`[MyTasks] loaded ${issues.length} assigned for ${user.name}(${user.id}):`, issues.map(i=>`${i.issueKey}:${i.status}`));
     render();
-  } catch (e) { notify.error(e.message); }
+  } catch (e) { console.error('[MyTasks] load failed', e); notify.error(e.message); }
 };
 
 $('#projectFilter')?.addEventListener('change', load);
