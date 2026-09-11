@@ -393,10 +393,16 @@ public class IssueService {
     public List<IssueResponse> getReviewIssuesForCreator(Long creatorId, Long projectId) {
         List<Issue> all = issueRepo.findByReporterId(creatorId);
         return all.stream()
-                .filter(i -> isReviewStatus(i.getStatus()))
+                .filter(i -> isReviewOrDoneStatus(i.getStatus()))
                 .filter(i -> projectId == null || projectId.equals(i.getProjectId()))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    private boolean isReviewOrDoneStatus(String status) {
+        if (status == null) return false;
+        if (isReviewStatus(status)) return true;
+        return "DONE".equalsIgnoreCase(status) || "COMPLETED".equalsIgnoreCase(status);
     }
 
     public List<IssueResponse> getSubtasks(Long parentId) {

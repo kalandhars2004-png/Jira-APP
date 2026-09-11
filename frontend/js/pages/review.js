@@ -11,6 +11,11 @@ const isReviewStatus = (s) => {
   const u = String(s).toUpperCase();
   return u === 'REVIEW' || u === 'IN_REVIEW' || u.includes('REVIEW');
 };
+const isReviewOrDoneStatus = (s) => {
+  if (!s) return false;
+  const u = String(s).toUpperCase();
+  return isReviewStatus(s) || u === 'DONE' || u === 'COMPLETED';
+};
 
 const user = auth.requireAuth();
 initSidebar('review');
@@ -34,6 +39,10 @@ const init = async () => {
   try {
     const projects = await api.get('/api/projects');
     projectSelect.textContent = '';
+    const allOpt = document.createElement('option');
+    allOpt.value = '';
+    allOpt.textContent = 'All Projects';
+    projectSelect.appendChild(allOpt);
     projects.forEach((p) => {
       const opt = document.createElement('option');
       opt.value = p.id;
@@ -41,15 +50,16 @@ const init = async () => {
       if (String(p.id) === String(activeProjectId)) opt.selected = true;
       projectSelect.appendChild(opt);
     });
-    if (!activeProjectId && projects[0]) activeProjectId = String(projects[0].id);
     if (activeProjectId) { projectSelect.value = activeProjectId; localStorage.setItem('activeProjectId', activeProjectId); }
+    else { projectSelect.value = ''; }
     await load();
   } catch (e) { notify.error(e.message); }
 };
 
 projectSelect?.addEventListener('change', async () => {
   activeProjectId = projectSelect.value;
-  localStorage.setItem('activeProjectId', activeProjectId);
+  if (activeProjectId) localStorage.setItem('activeProjectId', activeProjectId);
+  else localStorage.removeItem('activeProjectId');
   await load();
 });
 
@@ -88,20 +98,21 @@ const renderFiltered = () => {
 };
 
 const load = async () => {
-  if (!activeProjectId) { renderList([]); return; }
   try {
     if (activeReviewView === 'my') {
-      // Creator-aware backend query: WHERE status is review-like AND reporterId = currentUser
+      // Creator-aware backend query: WHERE status is review-like/DONE AND reporterId = currentUser
+      // Covers: when jira moved to DONE or REVIEW, creator's review shows it
       try {
-        allIssues = await api.get('/api/issues/review', { params: { projectId: activeProjectId } });
+        const params = activeProjectId ? { projectId: activeProjectId } : {};
+        allIssues = await api.get('/api/issues/review', { params });
       } catch {
         // fallback to client-side filtering if endpoint unavailable
-        const issues = await api.get(`/api/projects/${activeProjectId}/issues`);
-        allIssues = issues.filter(i => isReviewStatus(i.status) && String(i.reporterId) === String(user.id));
+        const issues = activeProjectId ? await api.get(`/api/projects/${activeProjectId}/issues`) : await api.get('/api/issues');
+        allIssues = issues.filter(i => isReviewOrDoneStatus(i.status) && String(i.reporterId) === String(user.id));
       }
     } else {
-      const issues = await api.get(`/api/projects/${activeProjectId}/issues`);
-      allIssues = issues.filter(i => isReviewStatus(i.status));
+      const issues = activeProjectId ? await api.get(`/api/projects/${activeProjectId}/issues`) : await api.get('/api/issues');
+      allIssues = issues.filter(i => isReviewOrDoneStatus(i.status));
     }
     renderFiltered();
   } catch (e) { notify.error(e.message); }
