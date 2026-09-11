@@ -89,24 +89,17 @@ document.querySelectorAll('.view-btn').forEach(btn => {
   });
 });
 
-document.querySelectorAll('[data-collapse]').forEach(head => {
-  head.addEventListener('click', () => {
-    const sec = head.closest('section');
-    const isCollapsed = head.dataset.collapsed === '1';
-    head.dataset.collapsed = isCollapsed ? '0' : '1';
-    const icon = head.querySelector('.collapse-icon');
-    if (icon) icon.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
-    const grid = sec.querySelector('.task-grid');
-    const list = sec.querySelector('.list-view');
-    const empty = sec.querySelector('.empty-compact');
-    if (isCollapsed) {
-      if (grid) grid.style.display = viewMode==='board' ? 'grid' : 'none';
-      if (list) list.style.display = viewMode==='list' ? 'flex' : 'none';
-      if (empty) empty.style.display = empty.classList.contains('hidden') ? 'none' : 'block';
-    } else {
-      if (grid) grid.style.display = 'none';
-      if (list) list.style.display = 'none';
-      if (empty) empty.style.display = 'none';
+// Summary cards scroll to column on click
+document.querySelectorAll('.summary-card[data-col]').forEach(card => {
+  card.addEventListener('click', () => {
+    const col = card.dataset.col;
+    if (col === 'PROGRESS') return;
+    const map = { OVERDUE:'col-overdue', DUE_TODAY:'col-today', UPCOMING:'col-upcoming', COMPLETED:'col-completed' };
+    const el = document.getElementById(map[col]);
+    if (el) {
+      el.scrollIntoView({ behavior:'smooth', block:'start' });
+      el.style.outline = '2px solid #c7d2fe';
+      setTimeout(()=> el.style.outline='', 1200);
     }
   });
 });
@@ -151,9 +144,10 @@ const render = () => {
     const boardEl = $(boardId);
     const listEl = $(listId);
     const emptyEl = $(emptyId);
-    const isBoard = viewMode === 'board';
-    boardEl.style.display = isBoard ? 'grid' : 'none';
-    listEl.style.display = isBoard ? 'none' : 'flex';
+    const isBoard = true; // 4-column board is primary; list hidden
+    boardEl.style.display = 'flex';
+    boardEl.style.flexDirection = 'column';
+    listEl.style.display = 'none';
     boardEl.textContent = '';
     listEl.textContent = '';
     const hasTasks = list.length > 0;
@@ -199,7 +193,8 @@ const render = () => {
 
   const hasAny = total > 0;
   $('#empty').classList.toggle('hidden', hasAny);
-  document.getElementById('sections').style.display = hasAny ? 'block' : 'none';
+  const boardEl = document.getElementById('mytasksBoard');
+  if (boardEl) boardEl.style.display = hasAny ? 'grid' : 'none';
   captureSnap();
   if (window.lucide) lucide.createIcons();
 };
@@ -233,9 +228,11 @@ const createCompactCard = (issue) => {
     const dueText = clone.querySelector('.due-text');
     let dueLabel = dueDisplayText(issue, new Date());
     let dueClass = 'upcoming';
-    if (ds === 'OVERDUE') { dueLabel = `Overdue • ${formatDateTime(issue.dueDate)}`; dueClass = 'overdue'; }
-    else if (ds === 'DUE_TODAY') { dueLabel = `Due today at ${formatTime(issue.dueDate)}`; dueClass = 'today'; }
-    else if (ds === 'COMPLETED') { dueLabel = `Completed ${formatDateShort(issue.completedDate || issue.dueDate)}`; dueClass = 'completed'; }
+    let cardAccent = 'upcoming-card';
+    if (ds === 'OVERDUE') { dueLabel = `Overdue • ${formatDateTime(issue.dueDate)}`; dueClass = 'overdue'; cardAccent = 'overdue-card'; }
+    else if (ds === 'DUE_TODAY') { dueLabel = `Due today at ${formatTime(issue.dueDate)}`; dueClass = 'today'; cardAccent = 'today-card'; }
+    else if (ds === 'COMPLETED') { dueLabel = `Completed ${formatDateShort(issue.completedDate || issue.dueDate)}`; dueClass = 'completed'; cardAccent = 'completed-card'; }
+    card.classList.add(cardAccent);
     const deadlineEl = clone.querySelector('.deadline');
     deadlineEl.className = `deadline ${dueClass}`;
     dueText.textContent = dueLabel;

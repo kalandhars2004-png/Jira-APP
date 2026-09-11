@@ -7,48 +7,82 @@
   <link rel="stylesheet" href="/css/global.css" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <style>
-    .mytasks-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
-    .mytasks-title { font-size:20px; font-weight:800; letter-spacing:-.02em; }
-    .mytasks-sub { font-size:13px; color:#64748b; margin-top:2px; }
+    /* My Tasks — 4-column Personal Kanban */
+    .mytasks-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
+    .mytasks-title { font-size:22px; font-weight:800; letter-spacing:-.02em; line-height:1.1; }
+    .mytasks-sub { font-size:13px; color:#64748b; margin-top:3px; line-height:1.4; }
+    .mytasks-header-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto; }
+    .mytasks-header-right .search-box { min-width:220px; max-width:280px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:7px 12px; }
+    .mytasks-header-right .search-box:focus-within { border-color:#4f46e5; box-shadow:0 0 0 3px #eef2ff; }
+    /* Summary — compact */
     .summary-row { display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; margin-bottom:14px; }
-    @media (max-width: 860px) { .summary-row { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 520px) { .summary-row { grid-template-columns: 1fr; } }
-    .summary-card { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px; display:flex; align-items:center; gap:10px; }
-    .summary-icon { width:36px; height:36px; border-radius:8px; display:grid; place-items:center; flex-shrink:0; }
-    .summary-icon.overdue { background:#fef2f2; color:#dc2626; }
-    .summary-icon.today { background:#fffbeb; color:#b45309; }
-    .summary-icon.upcoming { background:#eff6ff; color:#2563eb; }
-    .summary-icon.completed { background:#f0fdf4; color:#059669; }
-    .summary-icon.progress { background:#eef2ff; color:#4f46e5; }
-    .summary-val { font-size:18px; font-weight:800; line-height:1; }
-    .summary-label { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#64748b; }
+    @media (max-width: 1024px) { .summary-row { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 640px) { .summary-row { grid-template-columns: repeat(2, 1fr); } }
+    .summary-card { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:10px; cursor:pointer; transition:border-color .14s, box-shadow .14s, transform .14s; }
+    .summary-card:hover { border-color:#cbd5e1; box-shadow:0 2px 8px rgba(15,23,42,.06); transform:translateY(-1px); }
+    .summary-icon { width:34px; height:34px; border-radius:8px; display:grid; place-items:center; flex-shrink:0; }
+    .summary-icon.overdue { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .summary-icon.today { background:#fffbeb; color:#b45309; border:1px solid #fde68a; }
+    .summary-icon.upcoming { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+    .summary-icon.completed { background:#f0fdf4; color:#059669; border:1px solid #bbf7d0; }
+    .summary-icon.progress { background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; }
+    .summary-val { font-size:17px; font-weight:800; line-height:1; }
+    .summary-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#64748b; margin-top:2px; }
+    /* Filter toolbar — compact single row */
     .filter-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:white; border:1px solid #e2e8f0; border-radius:10px; padding:8px; margin-bottom:14px; }
-    .filter-toolbar .search-box { flex:1; min-width:180px; max-width:320px; background:#f8fafc; }
-    .view-toggle { display:flex; background:#f1f5f9; border-radius:8px; padding:2px; gap:2px; }
+    .filter-toolbar .search-box { flex:1; min-width:160px; max-width:320px; background:#f8fafc; }
+    .filter-toolbar .form-select { min-height:36px; }
+    .view-toggle { display:flex; background:#f1f5f9; border-radius:8px; padding:2px; gap:2px; margin-left:auto; }
     .view-btn { display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:6px; font-size:13px; font-weight:600; border:none; background:transparent; color:#64748b; cursor:pointer; }
     .view-btn.active { background:white; color:#0f172a; box-shadow:0 1px 3px rgba(0,0,0,.08); }
-    .task-section { margin-bottom:14px; }
-    .task-section-head { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #e2e8f0; margin-bottom:8px; cursor:pointer; user-select:none; }
-    .task-section-title { font-size:12px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; display:flex; align-items:center; gap:6px; }
-    .task-section-title.overdue { color:#dc2626; }
-    .task-section-title.today { color:#b45309; }
-    .task-section-title.upcoming { color:#334155; }
-    .task-section-title.completed { color:#059669; }
-    .task-section-count { background:#f1f5f9; border:1px solid #e2e8f0; padding:2px 7px; border-radius:99px; font-size:11px; font-weight:700; color:#475569; }
-    .task-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap:10px; }
-    @media (max-width: 640px) { .task-grid { grid-template-columns: 1fr; } }
-    .task-card-compact { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px; cursor:pointer; transition: border-color .15s, box-shadow .15s; }
-    .task-card-compact:hover { border-color:#cbd5e1; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+    /* 4-column board */
+    .mytasks-board { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:14px; align-items:start; }
+    @media (max-width: 1100px) { .mytasks-board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .mytasks-board { grid-template-columns: 1fr; } }
+    .mytasks-col { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; display:flex; flex-direction:column; min-height:420px; max-height: calc(100vh - 300px); }
+    @media (max-width: 1100px) { .mytasks-col { max-height: 560px; } }
+    @media (max-width: 640px) { .mytasks-col { max-height: none; } }
+    .mytasks-col-header { padding:12px 12px 10px; display:flex; align-items:center; justify-content:space-between; background:white; border-bottom:1px solid #e2e8f0; border-radius:12px 12px 0 0; position:sticky; top:0; z-index:1; gap:8px; }
+    .mytasks-col-title { font-size:11px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; display:flex; align-items:center; gap:8px; }
+    .mytasks-col-title.overdue { color:#dc2626; }
+    .mytasks-col-title.today { color:#b45309; }
+    .mytasks-col-title.upcoming { color:#2563eb; }
+    .mytasks-col-title.completed { color:#059669; }
+    .mytasks-col-icon { width:28px; height:28px; border-radius:8px; display:grid; place-items:center; flex-shrink:0; }
+    .mytasks-col-icon.overdue { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .mytasks-col-icon.today { background:#fffbeb; color:#b45309; border:1px solid #fde68a; }
+    .mytasks-col-icon.upcoming { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+    .mytasks-col-icon.completed { background:#f0fdf4; color:#059669; border:1px solid #bbf7d0; }
+    .mytasks-col-count { background:#f1f5f9; border:1px solid #e2e8f0; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:700; color:#334155; min-width:24px; text-align:center; }
+    .mytasks-col-count.overdue { background:#fef2f2; border-color:#fecaca; color:#dc2626; }
+    .mytasks-col-count.today { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+    .mytasks-col-count.upcoming { background:#eff6ff; border-color:#bfdbfe; color:#1e40af; }
+    .mytasks-col-count.completed { background:#f0fdf4; border-color:#bbf7d0; color:#15803d; }
+    .mytasks-col-body { padding:10px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; flex:1; min-height:0; scrollbar-width:thin; }
+    .mytasks-col-body::-webkit-scrollbar { width:6px; }
+    .mytasks-col-body::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:99px; }
+    /* Cards — keep existing .task-card-compact but refine for board */
+    .task-grid { display:flex; flex-direction:column; gap:10px; }
+    .task-card-compact { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px; cursor:pointer; transition: border-color .15s, box-shadow .15s, transform .15s; display:flex; flex-direction:column; gap:0; }
+    .task-card-compact:hover { border-color:#cbd5e1; box-shadow:0 2px 8px rgba(15,23,42,.06); transform:translateY(-1px); }
+    .task-card-compact.overdue-card { border-left:3px solid #fca5a5; }
+    .task-card-compact.today-card { border-left:3px solid #fcd34d; }
+    .task-card-compact.upcoming-card { border-left:3px solid #93c5fd; }
+    .task-card-compact.completed-card { border-left:3px solid #86efac; opacity:.92; }
+    .task-card-compact.completed-card .task-card-title { color:#475569; }
     .task-card-key { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#64748b; }
     .task-card-title { font-size:13px; font-weight:600; line-height:1.4; margin-top:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-    .task-card-meta { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:11px; }
-    .task-card-foot { display:flex; align-items:center; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9; font-size:11px; color:#64748b; }
-    .deadline { display:flex; align-items:center; gap:4px; font-weight:600; font-size:11px; }
+    .task-card-meta { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:11px; flex-wrap:wrap; }
+    .task-card-foot { display:flex; align-items:center; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9; font-size:11px; color:#64748b; gap:8px; }
+    .deadline { display:flex; align-items:center; gap:4px; font-weight:600; font-size:11px; white-space:nowrap; }
     .deadline.overdue { color:#dc2626; }
     .deadline.today { color:#b45309; }
-    .deadline.upcoming { color:#64748b; }
+    .deadline.upcoming { color:#475569; }
     .deadline.completed { color:#059669; }
-    .empty-compact { text-align:center; padding:14px; color:#94a3b8; font-size:13px; background:#f8fafc; border:1px dashed #e2e8f0; border-radius:10px; }
+    .mytasks-empty { text-align:center; padding:28px 12px; color:#94a3b8; font-size:13px; background:white; border:1px dashed #e2e8f0; border-radius:10px; display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .mytasks-empty-icon { width:36px; height:36px; border-radius:8px; background:#f1f5f9; display:grid; place-items:center; color:#94a3b8; }
+    .mytasks-empty-title { font-weight:600; color:#64748b; font-size:13px; }
+    .mytasks-empty-desc { font-size:11px; color:#94a3b8; }
     .empty-centered { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; background:white; border:1px solid #e2e8f0; border-radius:12px; text-align:center; max-width:420px; margin:40px auto; }
     .empty-centered-icon { width:48px; height:48px; border-radius:12px; background:#f1f5f9; display:grid; place-items:center; color:#64748b; }
     .list-view { display:flex; flex-direction:column; gap:8px; }
@@ -107,24 +141,24 @@
         </div>
       </header>
 
-      <main class="page-content" style="max-width:1100px">
+      <main class="page-content" style="max-width:1440px">
         <div class="mytasks-header">
           <div>
             <div class="mytasks-title">My Tasks</div>
             <div class="mytasks-sub">Your assigned work, deadlines, and progress.</div>
           </div>
-          <div style="display:flex; align-items:center; gap:8px; margin-left:auto">
-            <div class="search-box" style="min-width:200px; max-width:260px"><i data-lucide="search" style="width:16px;height:16px;color:#94a3b8"></i><input id="headerSearch" placeholder="Search" /></div>
+          <div class="mytasks-header-right">
+            <div class="search-box"><i data-lucide="search" style="width:16px;height:16px;color:#94a3b8"></i><input id="headerSearch" placeholder="Search" /></div>
             <button class="btn btn-primary" id="topnavAction"><i data-lucide="layout-grid" style="width:16px;height:16px"></i> Open Board <i data-lucide="arrow-right" style="width:14px;height:14px"></i></button>
           </div>
         </div>
 
         <div class="summary-row" id="summaryRow">
-          <div class="summary-card"><div class="summary-icon overdue"><i data-lucide="alert-triangle" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroOverdue">0</div><div class="summary-label">Overdue</div></div></div>
-          <div class="summary-card"><div class="summary-icon today"><i data-lucide="clock" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroDueToday">0</div><div class="summary-label">Due Today</div></div></div>
-          <div class="summary-card"><div class="summary-icon upcoming"><i data-lucide="calendar-days" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroUpcoming">0</div><div class="summary-label">Upcoming</div></div></div>
-          <div class="summary-card"><div class="summary-icon completed"><i data-lucide="check-circle-2" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroCompleted">0</div><div class="summary-label">Completed</div></div></div>
-          <div class="summary-card"><div class="summary-icon progress"><i data-lucide="bar-chart-3" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroRate">0%</div><div class="summary-label">Progress</div></div></div>
+          <div class="summary-card" data-col="OVERDUE"><div class="summary-icon overdue"><i data-lucide="alert-triangle" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroOverdue">0</div><div class="summary-label">Overdue</div></div></div>
+          <div class="summary-card" data-col="DUE_TODAY"><div class="summary-icon today"><i data-lucide="clock" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroDueToday">0</div><div class="summary-label">Due Today</div></div></div>
+          <div class="summary-card" data-col="UPCOMING"><div class="summary-icon upcoming"><i data-lucide="calendar-days" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroUpcoming">0</div><div class="summary-label">Upcoming</div></div></div>
+          <div class="summary-card" data-col="COMPLETED"><div class="summary-icon completed"><i data-lucide="check-circle-2" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroCompleted">0</div><div class="summary-label">Completed</div></div></div>
+          <div class="summary-card" data-col="PROGRESS"><div class="summary-icon progress"><i data-lucide="bar-chart-3" style="width:18px;height:18px"></i></div><div><div class="summary-val" id="heroRate">0%</div><div class="summary-label">Progress</div></div></div>
         </div>
 
         <div class="filter-toolbar">
@@ -132,49 +166,73 @@
           <div class="search-box" style="flex:1"><i data-lucide="search" style="width:16px;height:16px;color:#94a3b8"></i><input id="searchInput" placeholder="Search tasks..." /></div>
           <select id="priorityFilter" class="form-select" style="min-width:130px"><option value="">All Priorities</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select>
           <select id="sortBy" class="form-select" style="min-width:140px"><option value="dueDate">Sort: Due Date</option><option value="priority">Sort: Priority</option><option value="created">Sort: Created</option></select>
-          <div class="view-toggle" id="viewToggle">
+          <div class="view-toggle" id="viewToggle" style="display:none">
             <button class="view-btn active" data-view="board"><i data-lucide="layout-grid" style="width:14px;height:14px"></i> Board</button>
             <button class="view-btn" data-view="list"><i data-lucide="list" style="width:14px;height:14px"></i> List</button>
           </div>
         </div>
 
-        <div id="sections">
-          <section class="task-section" data-section="OVERDUE">
-            <div class="task-section-head" data-collapse="OVERDUE">
-              <span class="task-section-title overdue"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i> Overdue <span id="countOverdue" class="task-section-count">0</span></span>
-              <i data-lucide="chevron-down" style="width:14px;height:14px;color:#94a3b8;margin-left:auto" class="collapse-icon"></i>
+        <div class="mytasks-board" id="mytasksBoard">
+          <div class="mytasks-col" id="col-overdue" data-col="OVERDUE">
+            <div class="mytasks-col-header">
+              <div class="mytasks-col-title overdue"><span class="mytasks-col-icon overdue"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i></span> Overdue</div>
+              <span class="mytasks-col-count overdue" id="countOverdue">0</span>
             </div>
-            <div id="listOverdue" class="task-grid"></div>
-            <div id="listOverdueList" class="list-view hidden"></div>
-            <div id="emptyOverdue" class="empty-compact hidden"><i data-lucide="check-circle-2" style="width:16px;height:16px;color:#059669"></i> No overdue tasks</div>
-          </section>
-          <section class="task-section" data-section="DUE_TODAY">
-            <div class="task-section-head" data-collapse="DUE_TODAY">
-              <span class="task-section-title today"><i data-lucide="clock" style="width:14px;height:14px"></i> Due Today <span id="countDueToday" class="task-section-count">0</span></span>
-              <i data-lucide="chevron-down" style="width:14px;height:14px;color:#94a3b8;margin-left:auto" class="collapse-icon"></i>
+            <div class="mytasks-col-body" id="colBodyOverdue">
+              <div id="listOverdue" class="task-grid"></div>
+              <div id="listOverdueList" class="list-view hidden"></div>
+              <div id="emptyOverdue" class="mytasks-empty hidden">
+                <div class="mytasks-empty-icon"><i data-lucide="circle" style="width:16px;height:16px"></i></div>
+                <div class="mytasks-empty-title">No overdue tasks</div>
+                <div class="mytasks-empty-desc">You're all caught up!</div>
+              </div>
             </div>
-            <div id="listDueToday" class="task-grid"></div>
-            <div id="listDueTodayList" class="list-view hidden"></div>
-            <div id="emptyDueToday" class="empty-compact hidden">No tasks due today</div>
-          </section>
-          <section class="task-section" data-section="UPCOMING">
-            <div class="task-section-head" data-collapse="UPCOMING">
-              <span class="task-section-title upcoming"><i data-lucide="calendar-days" style="width:14px;height:14px"></i> Upcoming <span id="countUpcoming" class="task-section-count">0</span></span>
-              <i data-lucide="chevron-down" style="width:14px;height:14px;color:#94a3b8;margin-left:auto" class="collapse-icon"></i>
+          </div>
+          <div class="mytasks-col" id="col-today" data-col="DUE_TODAY">
+            <div class="mytasks-col-header">
+              <div class="mytasks-col-title today"><span class="mytasks-col-icon today"><i data-lucide="clock" style="width:14px;height:14px"></i></span> Due Today</div>
+              <span class="mytasks-col-count today" id="countDueToday">0</span>
             </div>
-            <div id="listUpcoming" class="task-grid"></div>
-            <div id="listUpcomingList" class="list-view hidden"></div>
-            <div id="emptyUpcoming" class="empty-compact hidden">No upcoming tasks</div>
-          </section>
-          <section class="task-section" data-section="COMPLETED">
-            <div class="task-section-head" data-collapse="COMPLETED">
-              <span class="task-section-title completed"><i data-lucide="check-circle-2" style="width:14px;height:14px"></i> Completed <span id="countCompleted" class="task-section-count">0</span></span>
-              <i data-lucide="chevron-down" style="width:14px;height:14px;color:#94a3b8;margin-left:auto" class="collapse-icon"></i>
+            <div class="mytasks-col-body" id="colBodyToday">
+              <div id="listDueToday" class="task-grid"></div>
+              <div id="listDueTodayList" class="list-view hidden"></div>
+              <div id="emptyDueToday" class="mytasks-empty hidden">
+                <div class="mytasks-empty-icon"><i data-lucide="clock" style="width:16px;height:16px"></i></div>
+                <div class="mytasks-empty-title">Nothing due today</div>
+                <div class="mytasks-empty-desc">Take a breath.</div>
+              </div>
             </div>
-            <div id="listCompleted" class="task-grid"></div>
-            <div id="listCompletedList" class="list-view hidden"></div>
-            <div id="emptyCompleted" class="empty-compact hidden">No completed tasks</div>
-          </section>
+          </div>
+          <div class="mytasks-col" id="col-upcoming" data-col="UPCOMING">
+            <div class="mytasks-col-header">
+              <div class="mytasks-col-title upcoming"><span class="mytasks-col-icon upcoming"><i data-lucide="calendar-days" style="width:14px;height:14px"></i></span> Upcoming</div>
+              <span class="mytasks-col-count upcoming" id="countUpcoming">0</span>
+            </div>
+            <div class="mytasks-col-body" id="colBodyUpcoming">
+              <div id="listUpcoming" class="task-grid"></div>
+              <div id="listUpcomingList" class="list-view hidden"></div>
+              <div id="emptyUpcoming" class="mytasks-empty hidden">
+                <div class="mytasks-empty-icon"><i data-lucide="calendar" style="width:16px;height:16px"></i></div>
+                <div class="mytasks-empty-title">No upcoming tasks</div>
+                <div class="mytasks-empty-desc">All scheduled.</div>
+              </div>
+            </div>
+          </div>
+          <div class="mytasks-col" id="col-completed" data-col="COMPLETED">
+            <div class="mytasks-col-header">
+              <div class="mytasks-col-title completed"><span class="mytasks-col-icon completed"><i data-lucide="check-circle-2" style="width:14px;height:14px"></i></span> Completed</div>
+              <span class="mytasks-col-count completed" id="countCompleted">0</span>
+            </div>
+            <div class="mytasks-col-body" id="colBodyCompleted">
+              <div id="listCompleted" class="task-grid"></div>
+              <div id="listCompletedList" class="list-view hidden"></div>
+              <div id="emptyCompleted" class="mytasks-empty hidden">
+                <div class="mytasks-empty-icon"><i data-lucide="check" style="width:16px;height:16px"></i></div>
+                <div class="mytasks-empty-title">No completed tasks</div>
+                <div class="mytasks-empty-desc">Finish a task to see it here.</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div id="empty" class="empty-centered hidden">
