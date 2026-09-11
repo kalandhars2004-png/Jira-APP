@@ -220,10 +220,8 @@ let renderedSnap = null;
 const captureSnap = () => { renderedSnap = deadlineSnapshot(all, new Date()); };
 const watchLive = () => {
   onClockTick(() => {
-    const next = deadlineSnapshot(all, new Date());
-    let changed = !renderedSnap || renderedSnap.size !== next.size;
-    if (!changed) { for (const [k, v] of next) { if (renderedSnap.get(k) !== v) { changed = true; break; } } }
-    if (changed) { renderedSnap = next; render(); }
+    renderedSnap = deadlineSnapshot(all, new Date());
+    render();
   });
 };
 

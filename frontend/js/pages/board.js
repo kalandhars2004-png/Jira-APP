@@ -351,17 +351,11 @@ const filteredIssues = () => {
 let renderedDeadlineSnapshot = null;
 const captureSnapshot = () => { renderedDeadlineSnapshot = deadlineSnapshot(allIssues, new Date()); };
 
-// One centralized tick drives live overdue detection — re-render only when a boundary is crossed.
+// Centralized ticker: re-render every 30s so both overdue status AND relativeDue ("Due in 1 minute") stay live
 const watchLiveOverdue = () => {
   onClockTick(() => {
-    const next = deadlineSnapshot(allIssues, new Date());
-    let changed = !renderedDeadlineSnapshot || renderedDeadlineSnapshot.size !== next.size;
-    if (!changed) {
-      for (const [k, v] of next) {
-        if (renderedDeadlineSnapshot.get(k) !== v) { changed = true; break; }
-      }
-    }
-    if (changed) { renderedDeadlineSnapshot = next; renderBoard(); }
+    renderedDeadlineSnapshot = deadlineSnapshot(allIssues, new Date());
+    renderBoard();
   });
 };
 

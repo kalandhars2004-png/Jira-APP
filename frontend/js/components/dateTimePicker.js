@@ -344,7 +344,6 @@ export const createDateTimePicker = ({ container, value = null, onChange = null 
       position(timePop, timeTrigger);
       timePop.focus({ preventScroll: true });
     }
-    window.addEventListener('scroll', onWindowMove, true);
     window.addEventListener('resize', onWindowMove);
   };
   const onWindowMove = () => { if (state.show) close(); };
@@ -465,8 +464,7 @@ export const createDateTimePicker = ({ container, value = null, onChange = null 
 
   const destroy = () => {
     unsubscribeClock();
-    document.removeEventListener('scroll', onWindowMove, true);
-    document.removeEventListener('resize', onWindowMove);
+    window.removeEventListener('resize', onWindowMove);
     root.textContent = '';
   };
 
